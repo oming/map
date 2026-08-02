@@ -1,52 +1,63 @@
-# Style Builder — POI 스타일 변환기
+# Style Builder — V-World API 통합 POI 스타일 변환기
 
-V-World OpenLayers 스타일을 MapLibre symbol layer JSON으로 변환하는 도구입니다.
+V-World OpenLayers 스타일을 MapLibre symbol layer JSON으로 **자동 변환**하는 도구입니다.
 
 ## 개요
 
 이 도구는 V-World의 벡터 타일에 포함된 POI(관심 장소) 데이터를 MapLibre GL JS에서 렌더링할 수 있는 형식으로 변환합니다.
 
+**수동 파일 준비가 필요 없습니다.** `./run.sh` 한 번으로 V-World API에서 스타일을 자동 다운로드하고, MapLibre symbol layer JSON(`data/poi-layers.json`)을 생성합니다.
+
 ### 핵심 기능
 
-- **스타일 파싱**: V-World OpenLayers 스타일 JS 파일 (`function StyleJson()`) 파싱
+- **자동 다운로드**: V-World API에서 `vectorStylePoi.js`를 자동으로 가져옴
 - **클러스터링**: 동일한 스타일을 공유하는 cl_id들을 그룹화하여 레이어 수 최소화 (674개 cl_id → 실제 필요한 레이어 수)
-- **좌표계 변환**: OpenLayers anchor(0~1) → MapLibre icon-offset(px) 변환
+- **좌표계 변환**: OpenLayers anchor(0~1) → MapLibre icon-offset(px) 변환 (기존 sprite.json 활용)
 - **폰트 매핑**: V-World 폰트 코드 → 나눔고딕 Regular/Bold/ExtraBold 조합
 - **텍스트 정렬**: 수직/수평 코드를 MapLibre text-anchor 하나로 통합
 
 ## 사용법
 
 ```bash
-# 실행 (run.sh 사용)
+# 전체 파이프라인 실행 (API 다운로드 → 추출 → data/poi-layers.json 생성)
 cd tools/style-builder
 ./run.sh
 
-# 또는 직접 Node.js로 실행
+# 또는 Node.js로 직접 실행 (수동 파일이 있을 때)
 node extract-vworld-poi-style.js <vworld-style-js-path> [sprite.json path] [output dir]
-
-# 예시
-node extract-vworld-poi-style.js ./vectorStylePoi.js ./sprite_result/sprite.json ./out
 ```
 
-## 입력 파일
+### 파이프라인 흐름
 
-| 파일 | 설명 | 필수 |
-|------|------|------|
-| `vectorStylePoi.js` | V-World OpenLayers 스타일 정의 파일 | ✅ |
-| `sprite.json` | POI 아이콘 스프라이트 매핑 (선택) | ❌ |
+```
+V-World API (vectorStylePoi.js)
+    │  https://api.vworld.kr/req/wmts/vector/getStyle/{key}/vectorStylePoi
+    ├─→ curl (run.sh)  →  임시 vectorStylePoi.js 다운로드
+    │
+    └─→ extract-vworld-poi-style.js (Node.js)  →  MapLibre symbol layers 추출
+        ├─→ poi-style-by-clid.json (임시, 참고용)
+        └─→ poi-layers.json  →  data/poi-layers.json 으로 복사
+```
 
-### sprite.json 옵션
+### 출력 파일
 
-- **제공 시**: icon-offset 정확히 계산 (OpenLayers anchor 기준)
-- **미제공 시**: 모든 아이콘을 `icon-anchor: "center"` + `icon-offset: [0, 0]` 적용
-- 대부분의 cl_id는 실제로 0.5, 0.5이므로 큰 차이 없으나, 일부 아이콘은 어긋날 수 있음
+| 경로 | 설명 |
+|------|------|
+| `data/poi-layers.json` | **최종 출력물** — MapLibre symbol layers 배열 |
 
-## 출력 파일
+### 필요 환경 변수
 
-| 파일 | 설명 | 용도 |
-|------|------|------|
-| `poi-layers.json` | MapLibre symbol layers 배열 | **최종 출력물** - `app/data/poi-layers.json`으로 복사 |
-| `poi-style-by-clid.json` | cl_id별 스타일 매핑 | 디버깅/참고용 원본 매핑 |
+- `VWORLD_API_KEY` — V-World API 키 (`.env.local`에서 자동 읽기)
+
+## 의존 관계
+
+| 도구 | 역할 | 선행 작업 필요? |
+|------|------|----------------|
+| [sprite-builder](../sprite-builder/) | 스프라이트 파일 생성 (`public/sprite/sprite.json`) | `./run.sh` 실행 |
+
+`style-builder/run.sh`은 sprite-builder가 생성한 `public/sprite/sprite.json`을 참조하여 icon-offset 계산을 수행합니다.
+
+> **순서**: 먼저 `tools/sprite-builder/run.sh`을 실행하여 스프라이트를 생성한 후, `tools/style-builder/run.sh`을 실행하세요.
 
 ## 변환 로직 상세
 
@@ -160,11 +171,11 @@ filter: [
 ## 개발 참고
 
 - **클러스터링**: 동일한 스타일의 cl_id들을 묶어서 레이어 수를 최소화합니다 (성능 + 유지보수).
-- **sprite.json 필요성**: icon-offset 정확도를 위해 sprite.json 제공을 권장합니다.
+- **sprite.json 필요성**: icon-offset 정확도를 위해 sprite-builder에서 생성한 `public/sprite/sprite.json`을 사용합니다.
 - **폰트 파일**: `/public/font/*`에 나눔고딕 3종 (Regular/Bold/ExtraBold) 이 있어야 합니다.
 - **스프라이트 파일**: `/public/sprite/*` 에 POI 아이콘 스프라이트가 있어야 합니다.
 
 ## 관련 도구
 
 - [glyph-builder](../glyph-builder/) — 폰트 파일 생성
-- [sprite-builder](../sprite-builder/) — 스프라이트 파일 생성
+- [sprite-builder](../sprite-builder/) — 스프라이트 파일 생성 (style-builder의 icon-offset 계산에 사용)

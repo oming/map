@@ -234,68 +234,6 @@ export default function VWorldMap() {
       "top-left",
     );
 
-    // map.on("mousemove", (e) => {
-    //   const features = map.queryRenderedFeatures(e.point);
-    //   console.log("mousemove features", features);
-
-    //   // Limit the number of properties we're displaying for
-    //   // legibility and performance
-    //   const displayProperties = [
-    //     "type",
-    //     "properties",
-    //     "id",
-    //     "layer",
-    //     "source",
-    //     "sourceLayer",
-    //     "state",
-    //   ];
-
-    //   const displayFeatures = features.map((feat) => {
-    //     const displayFeat = {};
-    //     displayProperties.forEach((prop) => {
-    //       displayFeat[prop] = feat[prop];
-    //     });
-    //     return displayFeat;
-    //   });
-
-    //   const ele = document.getElementById("features");
-    //   if (!ele) return;
-    //   if (displayFeatures.length > 0) {
-    //     ele.style.display = "block";
-    //     ele.innerHTML = JSON.stringify(displayFeatures, null, 2);
-    //   } else {
-    //     ele.style.display = "none";
-    //   }
-    // });
-
-    // map.on("click", "poi-normal-*", (e) => {
-    //   const features = map.queryRenderedFeatures(e.point);
-    //   const displayProperties = [
-    //     "type",
-    //     "properties",
-    //     "id",
-    //     "layer",
-    //     "source",
-    //     "sourceLayer",
-    //     "state",
-    //   ];
-
-    //   const displayFeatures = features.map((feat) => {
-    //     const displayFeat = {};
-    //     displayProperties.forEach((prop) => {
-    //       displayFeat[prop] = feat[prop];
-    //     });
-    //     return displayFeat;
-    //   });
-
-    //   console.log("kkkk");
-
-    //   new Popup()
-    //     .setLngLat(e.lngLat)
-    //     .setHTML(JSON.stringify(displayFeatures, null, 2))
-    //     .addTo(map);
-    // });
-
     const marker = new Marker({ draggable: true })
       .setLngLat(SEOUL_CITY_HALL)
       .addTo(map);
@@ -340,13 +278,5 @@ export default function VWorldMap() {
     };
   }, []);
 
-  return (
-    <>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-      <pre
-        id="features"
-        className="hidden absolute top-0 right-0 bottom-0 w-1/2 overflow-auto bg-black/80 text-white"
-      ></pre>
-    </>
-  );
+  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }

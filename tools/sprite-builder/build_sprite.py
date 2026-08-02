@@ -1,39 +1,56 @@
 """
 브이월드 getStyle(StyleJson) 데이터 → MapLibre 스프라이트(sprite.png + sprite.json) 생성
 
-사용 순서:
-  1) node extract_style.js  (아래 별도 안내)  →  style_data.json 생성
-     (StyleJson() JS 객체를 안전하게 실행해서 JSON으로 뽑아내는 단계.
-      정규식으로 직접 파싱하지 않는 이유: 이 객체는 키가 따옴표 없는
-      JS 리터럴이라, 문자열 안에 중첩된 따옴표/이스케이프까지 있으면
-      정규식이 깨지기 쉽다. JS 엔진(node)이 직접 실행해서 파싱하게
-      하는 게 훨씬 안전하다.)
-  2) python3 build_sprite.py  →  sprite.png, sprite.json 생성
+자동 파이프라인 (V-World API 통합):
+  1) V-World API에서 vectorStylePoi.js 다운로드
+  2) node extract_style.js 로 StyleJson() JSON 추출 (subprocess)
+  3) Python으로 base64 아이콘 디코딩 + 스프라이트 패킹 → /public/sprite/ 배치
 
-#### 중단 #### 필요 패키지: pip install Pillow --break-system-packages
-# 1. 프로젝트 전용 가상환경 생성 (.venv라는 이름)
-python3 -m venv .venv
-
-# 2. 가상환경 활성화
-source .venv/bin/activate
-
-# 3. 안전하게 설치 (이때는 --break-system-packages 옵션이 필요 없음)
-pip install Pillow
+필요 패키지: pip install Pillow cairosvg
 """
 
 import base64
 import io
 import json
+import os
+import subprocess
+import tempfile
+import urllib.request
 from pathlib import Path
 
 import cairosvg
 from PIL import Image
 
-STYLE_DATA_PATH = Path("style_data.json")
-OUTPUT_PNG_PATH = Path("sprite.png")
-OUTPUT_JSON_PATH = Path("sprite.json")
-
 PADDING = 1  # 아이콘 사이 여백(px) — 렌더링 시 이웃 아이콘이 살짝 비치는 걸 방지
+
+# V-World API 스타일 파일 다운로드 URL 템플릿
+VWORLD_STYLE_URL_TEMPLATE = (
+    "https://api.vworld.kr/req/wmts/vector/getStyle/{api_key}/vectorStylePoi"
+)
+
+
+def download_style_file(api_key: str, output_path: str = "vectorStylePoi.js") -> bool:
+    """V-World API에서 vectorStylePoi.js를 다운로드합니다.
+
+    Args:
+        api_key: V-World API 키
+        output_path: 다운로드 파일 저장 경로
+
+    Returns:
+        True if success, False otherwise
+    """
+    url = VWORLD_STYLE_URL_TEMPLATE.format(api_key=api_key)
+    try:
+        print(f"[1/3] V-World API에서 스타일 파일 다운로드: {url}")
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            data = resp.read()
+        Path(output_path).write_bytes(data)
+        print(f"  → {output_path} 저장 완료 ({len(data)} bytes)")
+        return True
+    except Exception as e:
+        print(f"  ⚠ 다운로드 실패: {e}")
+        return False
 
 
 def load_icons(style_data: dict) -> dict[str, Image.Image]:
@@ -67,9 +84,12 @@ def load_icons(style_data: dict) -> dict[str, Image.Image]:
     return icons
 
 
-def pack_sprite(icons: dict[str, Image.Image], max_width: int = 2048):
+def pack_sprite(icons: dict[str, Image.Image], max_width: int = 1024):
     """단순 셸프(shelf) 패킹: 높이 내림차순으로 정렬해 왼쪽→오른쪽으로 채우고,
-    한 줄이 max_width를 넘으면 다음 줄로 내려감."""
+    한 줄이 max_width를 넘으면 다음 줄로 내려감.
+
+    1x 캔버스는 ~1024px 너비로 제한하여, 2x 업스케일 시 MapLibre 표준 2048px 이하를 유지합니다.
+    """
     items = sorted(icons.items(), key=lambda kv: kv[1].height, reverse=True)
 
     positions: dict[str, tuple[int, int, int, int]] = {}
@@ -110,22 +130,99 @@ def pack_sprite(icons: dict[str, Image.Image], max_width: int = 2048):
 
 
 def main():
-    with open(STYLE_DATA_PATH, encoding="utf-8") as f:
-        style_data = json.load(f)
+    # 1) API 키 확인: VWORLD_API_KEY → NEXT_PUBLIC_VWORLD_API_KEY 순으로 탐색
+    api_key = (
+        os.environ.get("VWORLD_API_KEY") or os.environ.get("NEXT_PUBLIC_VWORLD_API_KEY")
+    )
+    if not api_key:
+        print("⚠ VWORLD_API_KEY 환경 변수가 설정되지 않았습니다.")
+        print(
+            "  export VWORLD_API_KEY=<your-key> 또는 .env.local 파일을 확인하세요."
+        )
+        return
 
-    print(f"전체 cl_id 개수: {len(style_data)}")
+    script_dir = Path(__file__).parent
+
+    # 임시 디렉토리에서 파이프라인 실행 → 완료 시 자동 정리 (vectorStylePoi.js 잔여물 방지)
+    with tempfile.TemporaryDirectory() as tmp:
+        # 2) V-World API에서 스타일 파일 다운로드 (임시 디렉토리)
+        style_js_path = os.path.join(tmp, "vectorStylePoi.js")
+        if not download_style_file(api_key, style_js_path):
+            return
+
+        # 3) Node.js extract_style.js로 JSON 추출 (하위 프로세스 실행)
+        extract_script = script_dir / "extract_style.js"
+        if not extract_script.exists():
+            print("⚠ extract_style.js를 찾을 수 없습니다.")
+            return
+
+        result = subprocess.run(
+            ["node", str(extract_script), style_js_path],
+            capture_output=True,
+            text=True,
+        )
+    if result.returncode != 0:
+        print(f"⚠ extract_style.js 실행 실패:\n{result.stderr}")
+        return
+
+    # extract_style.js가 stdout으로 JSON을 출력하므로 직접 파싱
+    try:
+        style_data = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        print(f"⚠ extract_style.js 출력 파싱 실패:\n{e}")
+        return
+
+    # 4) 기존 스프라이트 빌딩 로직 (icon loading + packing + output)
+    print(f"[2/3] 스타일 데이터 처리: 전체 cl_id {len(style_data)}개")
     icons = load_icons(style_data)
 
     if not icons:
-        print("추출된 아이콘이 없습니다. style_data.json 구조를 확인해주세요.")
+        print("추출된 아이콘이 없습니다.")
         return
 
     canvas, sprite_json = pack_sprite(icons)
-    canvas.save(OUTPUT_PNG_PATH)
-    with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
+
+    # 5) 출력을 /public/sprite/에 직접 배치
+    output_dir = script_dir.parent.parent / "public" / "sprite"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    sprite_png_path = output_dir / "sprite.png"
+    sprite_json_path = output_dir / "sprite.json"
+
+    canvas.save(sprite_png_path)
+    with open(sprite_json_path, "w", encoding="utf-8") as f:
         json.dump(sprite_json, f, ensure_ascii=False, indent=2)
 
-    print(f"완료: {OUTPUT_PNG_PATH} ({canvas.width}x{canvas.height}), {OUTPUT_JSON_PATH}")
+    # @2x 버전 생성: 이미지를 2배 크기로 스케일업, 좌표도 2배 + pixelRatio=2
+    sprite_at2x_png_path = output_dir / "sprite@2x.png"
+    sprite_at2x_json_path = output_dir / "sprite@2x.json"
+
+    canvas_2x = canvas.resize(
+        (canvas.width * 2, canvas.height * 2), Image.LANCZOS
+    )
+    canvas_2x.save(sprite_at2x_png_path)
+
+    sprite_json_2x: dict[str, dict] = {}
+    for cl_id, info in sprite_json.items():
+        sprite_json_2x[cl_id] = {
+            "width": info["width"] * 2,
+            "height": info["height"] * 2,
+            "x": info["x"] * 2,
+            "y": info["y"] * 2,
+            "pixelRatio": 2,
+        }
+    with open(sprite_at2x_json_path, "w", encoding="utf-8") as f:
+        json.dump(sprite_json_2x, f, ensure_ascii=False, indent=2)
+
+    print(f"[3/3] 스프라이트 생성 완료")
+    print(
+        f"  → {sprite_png_path} ({canvas.width}x{canvas.height})"
+    )
+    print(f"  → {sprite_json_path}")
+    print(
+        f"  → {sprite_at2x_png_path} ({canvas_2x.width}x{canvas_2x.height})"
+    )
+    print(f"  → {sprite_at2x_json_path}")
 
 
 if __name__ == "__main__":

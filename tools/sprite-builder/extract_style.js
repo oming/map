@@ -19,8 +19,6 @@ if (!inputPath) {
 
 const code = fs.readFileSync(path.resolve(inputPath), "utf-8");
 
-// eslint-disable-next-line no-eval
 eval(code);
 
-// eslint-disable-next-line no-undef
 console.log(JSON.stringify(StyleJson()));

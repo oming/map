@@ -14,10 +14,9 @@ V-World API에서 `vectorStylePoi.js`를 **자동 다운로드** → Node.js로 
 # 전체 파이프라인 실행 (API 다운로드 → 추출 → 스프라이트 생성)
 cd tools/sprite-builder
 ./run.sh
-
-# 또는 Python 스크립트 직접 실행 (run.sh이 env를 설정하지 않음)
-VWORLD_API_KEY=your-key python3 build_sprite.py
 ```
+
+> **첫 실행 시** `.venv/` 가상환경이 자동으로 생성되고 `Pillow`, `cairosvg`가 설치됩니다. 두 번째 실행부터는 바로 스크립트가 동작합니다.
 
 ### 파이프라인 흐름
 
@@ -46,11 +45,7 @@ V-World API (vectorStylePoi.js)
 
 - `VWORLD_API_KEY` — V-World API 키 (`.env.local`에서 자동 읽기)
 
-### 필요 패키지
-
-```bash
-pip install Pillow cairosvg
-```
+> **의존성**: `Pillow`, `cairosvg` — `./run.sh` 실행 시 `.venv/` 가상환경에 자동으로 설치됩니다.
 
 ## 출력 형식
 

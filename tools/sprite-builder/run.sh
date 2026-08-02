@@ -24,7 +24,18 @@ fi
 echo "=== V-World POI Sprite Builder ==="
 cd "$SCRIPT_DIR"
 
-# Python 스크립트 실행 (내부에서 download → extract → build 모두 처리)
-python3 build_sprite.py
+# --- 가상환경 자동 설정 (첫 실행 시에만 pip install 발생) ---
+VENV_DIR="$SCRIPT_DIR/.venv"
+if [ ! -d "$VENV_DIR" ]; then
+  echo "🔧 가상환경 생성 중: $VENV_DIR"
+  python3 -m venv "$VENV_DIR"
+  "$VENV_DIR/bin/pip" install -q -r "$SCRIPT_DIR/requirements.txt"
+  echo "✅ 가상환경 준비 완료"
+else
+  echo "📦 가상환경 사용: $VENV_DIR"
+fi
+
+# 가상환경 Python으로 스크립트 실행 (내부에서 download → extract → build 모두 처리)
+"$VENV_DIR/bin/python" build_sprite.py
 
 echo "=== 완료 ==="

@@ -77,6 +77,20 @@ POI 아이콘 스프라이트를 생성합니다.
 
 ---
 
+## pnpm 스크립트
+
+프로젝트 루트에서 다음 명령어로 실행할 수 있습니다:
+
+```bash
+pnpm build:style-builder   # POI 스타일 변환만 실행
+pnpm build:sprite-builder  # 스프라이트 생성만 실행
+pnpm build:tools           # 모든 도구 실행 (style + sprite)
+```
+
+> `build:glyph-builder`는 현재 미구현 상태입니다.
+
+---
+
 ## 상태
 
 | 도구 | 상태 | 설명 |

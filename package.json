@@ -10,7 +10,7 @@
     "build:style-builder": "bash tools/style-builder/run.sh",
     "build:sprite-builder": "bash tools/sprite-builder/run.sh",
     "build:glyph-builder": "echo 'glyph-builder is not implemented yet. See tools/glyph-builder/README.md'",
-    "build:tools": "pnpm run build:style-builder && pnpm run build:sprite-builder"
+    "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder"
   },
   "dependencies": {
     "@mapbox/vector-tile": "^3.0.0",

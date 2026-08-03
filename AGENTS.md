@@ -17,6 +17,11 @@ pnpm lint         # ESLint 실행 (flat config, eslint-config-next 기반)
 
 패키지 매니저는 **pnpm**입니다. 테스트 프레임워크가 없습니다.
 
+## Git 커밋 메시지
+
+- **커밋 메시지는 한국어로 작성**합니다.
+- 컨벤션: `type(scope): 설명` (예: `feat(ui): shadcn/ui 컴포넌트 추가`)
+
 ## 환경 변수
 
 필수 env vars (`.env.local`에 설정):

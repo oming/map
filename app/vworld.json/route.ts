@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         tileSize: 256,
         minzoom: VWORLD_VECTOR_MIN_ZOOM,
         maxzoom: VWORLD_VECTOR_MAX_ZOOM,
+        attribution: `<a href="https://www.vworld.kr/" target="_blank">&copy; V-World</a>`,
       },
       vworldPoi: {
         type: "vector",

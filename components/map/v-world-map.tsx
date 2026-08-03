@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 import {
   getVWorldVectorBackgroundUrl,
@@ -13,12 +12,12 @@ import {
 } from "@/lib/vworld/config";
 
 const SEOUL_CITY_HALL: [number, number] = [126.978, 37.5665];
-import "@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css";
 
 import { PbfReader } from "pbf";
 import { VectorTile } from "@mapbox/vector-tile";
 import { fromVectorTileJs as tileToProtobuf } from "vt-pbf";
 import {
+  AttributionControl,
   FullscreenControl,
   GeolocateControl,
   GlobeControl,
@@ -30,35 +29,30 @@ import {
   TerrainControl,
   addProtocol,
   setWorkerUrl,
+  ErrorEvent,
 } from "maplibre-gl";
 import MaplibreGeocoder, {
   CarmenGeojsonFeature,
   MaplibreGeocoderApi,
 } from "@maplibre/maplibre-gl-geocoder";
-// setWorkerUrl(
-//   new URL(
-//     "maplibre-gl/dist/maplibre-gl-worker.mjs",
-//     import.meta.url,
-//   ).toString(),
-// );
-// setWorkerUrl(
-//   new URL(
-//     "maplibre-gl/dist/maplibre-gl-shared.mjs",
-//     import.meta.url,
-//   ).toString(),
-// );
+import { Search } from "./search";
+import { ReactControl } from "./react-control";
+import { MapContext } from "./map-context";
 
-// setWorkerUrl("/maplibre-gl-worker.mjs");
 setWorkerUrl("/maplibre-worker/maplibre-gl-worker.mjs");
 
 const protocol = "reverse";
 
-export default function VWorldMap() {
+export default function VWorldMap({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<Map | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!containerRef.current || mapInstance) return;
 
     // addProtocol(protocol, async (params, abortController) => {
     //   console.log("addProtocol", { params });
@@ -73,8 +67,8 @@ export default function VWorldMap() {
     //   }
     // });
 
-    addProtocol(protocol, (request) => {
-      const url = request.url.replace(protocol + "://", "");
+    addProtocol(protocol, async (params, abortController) => {
+      const url = params.url.replace(protocol + "://", "");
       console.log("addProtocol url", url);
 
       return fetch(url)
@@ -129,9 +123,7 @@ export default function VWorldMap() {
 
     const map = new Map({
       container: containerRef.current,
-
       style: `/vworld.json?key=${VWORLD_API_KEY}`,
-
       center: SEOUL_CITY_HALL,
       zoom: 14,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
@@ -234,6 +226,8 @@ export default function VWorldMap() {
       "top-left",
     );
 
+    map.addControl(new ReactControl(<Search />), "top-left");
+
     const marker = new Marker({ draggable: true })
       .setLngLat(SEOUL_CITY_HALL)
       .addTo(map);
@@ -262,21 +256,29 @@ export default function VWorldMap() {
         .addTo(map);
     });
 
-    map.on("error", (e) => console.error("[MapLibre error]", e.error));
+    map.on("error", (e: ErrorEvent) =>
+      console.error("[MapLibre error]", e.error),
+    );
 
-    map.on("styleimagemissing", (e) => {
-      console.warn("[스프라이트에 없는 cl_id]", e.id);
-    });
+    // map.on("styleimagemissing", (e) => {
+    //   console.warn("[스프라이트에 없는 cl_id]", e.id);
+    // });
     map.setMissingStyleImageResolver((id) => {
       console.warn("[스프라이트에 없는 cl_id]", id);
     });
 
-    mapRef.current = map;
+    setMapInstance(map);
     return () => {
       map.remove();
-      mapRef.current = null;
+      setMapInstance(null);
     };
   }, []);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <MapContext.Provider value={{ map: mapInstance }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+        {children}
+      </div>
+    </MapContext.Provider>
+  );
 }

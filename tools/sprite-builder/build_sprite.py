@@ -84,11 +84,15 @@ def load_icons(style_data: dict) -> dict[str, Image.Image]:
     return icons
 
 
-def pack_sprite(icons: dict[str, Image.Image], max_width: int = 1024):
-    """단순 셸프(shelf) 패킹: 높이 내림차순으로 정렬해 왼쪽→오른쪽으로 채우고,
-    한 줄이 max_width를 넘으면 다음 줄로 내려감.
+MAX_WIDTH = 4096  # MapLibre 텍스처 최대 크기(2048) × pixelRatio=2
 
-    1x 캔버스는 ~1024px 너비로 제한하여, 2x 업스케일 시 MapLibre 표준 2048px 이하를 유지합니다.
+
+def pack_sprite(icons: dict[str, Image.Image]):
+    """단순 셸프(shelf) 패킹: 높이 내림차순으로 정렬해 왼쪽→오른쪽으로 채우고,
+    한 줄이 MAX_WIDTH를 넘으면 다음 줄로 내려감.
+
+    2x 스프라이트를 직접 빌드하므로, 1x 기준 2048px(MapLibre 표준)에 해당하는
+    4096px까지 캔버스 너비를 허용합니다.
     """
     items = sorted(icons.items(), key=lambda kv: kv[1].height, reverse=True)
 
@@ -100,7 +104,7 @@ def pack_sprite(icons: dict[str, Image.Image], max_width: int = 1024):
 
     for cl_id, img in items:
         w, h = img.width, img.height
-        if x_cursor + w > max_width:
+        if x_cursor + w > MAX_WIDTH:
             # 다음 줄로
             x_cursor = 0
             y_cursor += row_height + PADDING
@@ -123,7 +127,7 @@ def pack_sprite(icons: dict[str, Image.Image], max_width: int = 1024):
             "height": h,
             "x": x,
             "y": y,
-            "pixelRatio": 1,
+            "pixelRatio": 2,
         }
 
     return canvas, sprite_json
@@ -186,41 +190,42 @@ def main():
     output_dir = script_dir.parent.parent / "public" / "sprite"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    sprite_png_path = output_dir / "sprite.png"
-    sprite_json_path = output_dir / "sprite.json"
-
-    canvas.save(sprite_png_path)
-    with open(sprite_json_path, "w", encoding="utf-8") as f:
-        json.dump(sprite_json, f, ensure_ascii=False, indent=2)
-
-    # @2x 버전 생성: 이미지를 2배 크기로 스케일업, 좌표도 2배 + pixelRatio=2
+    # 2x 스프라이트를 직접 빌드 → sprite@2x.png + sprite@2x.json (pixelRatio=2)
     sprite_at2x_png_path = output_dir / "sprite@2x.png"
     sprite_at2x_json_path = output_dir / "sprite@2x.json"
 
-    canvas_2x = canvas.resize(
-        (canvas.width * 2, canvas.height * 2), Image.LANCZOS
-    )
-    canvas_2x.save(sprite_at2x_png_path)
-
-    sprite_json_2x: dict[str, dict] = {}
-    for cl_id, info in sprite_json.items():
-        sprite_json_2x[cl_id] = {
-            "width": info["width"] * 2,
-            "height": info["height"] * 2,
-            "x": info["x"] * 2,
-            "y": info["y"] * 2,
-            "pixelRatio": 2,
-        }
+    canvas.save(sprite_at2x_png_path)
     with open(sprite_at2x_json_path, "w", encoding="utf-8") as f:
-        json.dump(sprite_json_2x, f, ensure_ascii=False, indent=2)
+        json.dump(sprite_json, f, ensure_ascii=False, indent=2)
+
+    # 1x 스프라이트: 2x 캔버스를 LANCZOS로 다운스케일 → sprite.png + sprite.json (pixelRatio=1)
+    canvas_1x = canvas.resize(
+        (canvas.width // 2, canvas.height // 2), Image.LANCZOS
+    )
+    sprite_png_path = output_dir / "sprite.png"
+    sprite_json_path = output_dir / "sprite.json"
+
+    canvas_1x.save(sprite_png_path)
+
+    sprite_json_1x: dict[str, dict] = {}
+    for cl_id, info in sprite_json.items():
+        sprite_json_1x[cl_id] = {
+            "width": info["width"] // 2,
+            "height": info["height"] // 2,
+            "x": info["x"] // 2,
+            "y": info["y"] // 2,
+            "pixelRatio": 1,
+        }
+    with open(sprite_json_path, "w", encoding="utf-8") as f:
+        json.dump(sprite_json_1x, f, ensure_ascii=False, indent=2)
 
     print(f"[3/3] 스프라이트 생성 완료")
     print(
-        f"  → {sprite_png_path} ({canvas.width}x{canvas.height})"
+        f"  → {sprite_png_path} ({canvas_1x.width}x{canvas_1x.height}, pixelRatio=1)"
     )
     print(f"  → {sprite_json_path}")
     print(
-        f"  → {sprite_at2x_png_path} ({canvas_2x.width}x{canvas_2x.height})"
+        f"  → {sprite_at2x_png_path} ({canvas.width}x{canvas.height}, pixelRatio=2)"
     )
     print(f"  → {sprite_at2x_json_path}")
 

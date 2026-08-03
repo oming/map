@@ -127,7 +127,7 @@ def pack_sprite(icons: dict[str, Image.Image]):
             "height": h,
             "x": x,
             "y": y,
-            "pixelRatio": 2,
+            "pixelRatio": 1,
         }
 
     return canvas, sprite_json
@@ -190,7 +190,17 @@ def main():
     output_dir = script_dir.parent.parent / "public" / "sprite"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2x 스프라이트를 직접 빌드 → sprite@2x.png + sprite@2x.json (pixelRatio=2)
+    # sprite.png + sprite.json: pixelRatio=1, 풀해상도 캔버스 그대로 사용
+    sprite_png_path = output_dir / "sprite.png"
+    sprite_json_path = output_dir / "sprite.json"
+
+    canvas.save(sprite_png_path)
+    with open(sprite_json_path, "w", encoding="utf-8") as f:
+        json.dump(sprite_json, f, ensure_ascii=False, indent=2)
+
+    # sprite@2x.png + sprite@2x.json: 같은 풀해상도 캔버스를 2x로 제공, pixelRatio=1
+    # (MapLibre가 고해상도 디바이스에서 2x 파일을 로드할 때 pixelRatio=1로 처리하므로
+    #  아이콘이 축소되지 않고 원래 크기로 렌더링됨)
     sprite_at2x_png_path = output_dir / "sprite@2x.png"
     sprite_at2x_json_path = output_dir / "sprite@2x.json"
 
@@ -198,34 +208,11 @@ def main():
     with open(sprite_at2x_json_path, "w", encoding="utf-8") as f:
         json.dump(sprite_json, f, ensure_ascii=False, indent=2)
 
-    # 1x 스프라이트: 2x 캔버스를 LANCZOS로 다운스케일 → sprite.png + sprite.json (pixelRatio=1)
-    canvas_1x = canvas.resize(
-        (canvas.width // 2, canvas.height // 2), Image.LANCZOS
-    )
-    sprite_png_path = output_dir / "sprite.png"
-    sprite_json_path = output_dir / "sprite.json"
-
-    canvas_1x.save(sprite_png_path)
-
-    sprite_json_1x: dict[str, dict] = {}
-    for cl_id, info in sprite_json.items():
-        sprite_json_1x[cl_id] = {
-            "width": info["width"] // 2,
-            "height": info["height"] // 2,
-            "x": info["x"] // 2,
-            "y": info["y"] // 2,
-            "pixelRatio": 1,
-        }
-    with open(sprite_json_path, "w", encoding="utf-8") as f:
-        json.dump(sprite_json_1x, f, ensure_ascii=False, indent=2)
-
     print(f"[3/3] 스프라이트 생성 완료")
-    print(
-        f"  → {sprite_png_path} ({canvas_1x.width}x{canvas_1x.height}, pixelRatio=1)"
-    )
+    print(f"  → {sprite_png_path} ({canvas.width}x{canvas.height}, pixelRatio=1)")
     print(f"  → {sprite_json_path}")
     print(
-        f"  → {sprite_at2x_png_path} ({canvas.width}x{canvas.height}, pixelRatio=2)"
+        f"  → {sprite_at2x_png_path} ({canvas.width}x{canvas.height}, pixelRatio=1)"
     )
     print(f"  → {sprite_at2x_json_path}")
 

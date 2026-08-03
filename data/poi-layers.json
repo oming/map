@@ -8268,7 +8268,7 @@
       "icon-size": 0.8,
       "icon-offset": [
         0,
-        0
+        1
       ],
       "icon-allow-overlap": true,
       "text-optional": true
@@ -10783,8 +10783,8 @@
       "icon-image": "0207070000",
       "icon-size": 0.2,
       "icon-offset": [
-        -3,
-        -13
+        -5,
+        -26
       ],
       "icon-allow-overlap": true,
       "text-optional": true
@@ -13468,7 +13468,7 @@
       "icon-size": 0.2,
       "icon-offset": [
         0,
-        13
+        25
       ],
       "icon-allow-overlap": true,
       "text-optional": true
@@ -13528,7 +13528,7 @@
       "icon-size": 0.2,
       "icon-offset": [
         0,
-        13
+        25
       ],
       "icon-allow-overlap": true,
       "text-optional": true
@@ -14781,7 +14781,7 @@
       "icon-size": 0.2,
       "icon-offset": [
         0,
-        13
+        25
       ],
       "icon-allow-overlap": true,
       "text-optional": true
@@ -15253,7 +15253,7 @@
       "icon-size": 0.8,
       "icon-offset": [
         0,
-        0
+        1
       ],
       "icon-allow-overlap": true,
       "text-optional": true

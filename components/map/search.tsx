@@ -309,6 +309,7 @@ export function Search({ map }: { map?: MaplibreMap }) {
   const totalCount = places.totalCount + addresses.totalCount;
   const hasResults = places.items.length > 0 || addresses.items.length > 0;
   const isSearching = places.isLoading || addresses.isLoading;
+  const hasError = !!(places.error || addresses.error);
 
   React.useEffect(() => {
     if (!map) return;
@@ -599,6 +600,12 @@ export function Search({ map }: { map?: MaplibreMap }) {
             {isSearching && !hasResults && (
               <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
                 <Spinner /> 검색 중...
+              </div>
+            )}
+
+            {hasError && (
+              <div className="py-10 text-center text-sm text-red-500">
+                검색 중 오류가 발생했습니다. 다시 시도해주세요.
               </div>
             )}
 

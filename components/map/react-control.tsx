@@ -20,9 +20,10 @@ export class ReactControl implements IControl {
     this.container.style.pointerEvents = "auto"; // maplibregl-ctrl 대체
 
     const element = this.component as React.ReactElement;
-    const mapProp = { ...element.props, map } as React.ComponentProps<
-      typeof element.type
-    >;
+    const mapProp = {
+      ...(element.props as Record<string, unknown>),
+      map,
+    } as Record<string, unknown>;
     const mappedElement = React.createElement(element.type, mapProp);
 
     this.root = createRoot(this.container);
@@ -39,15 +40,8 @@ export class ReactControl implements IControl {
   // }
 
   onRemove(): void {
-    // this.root?.unmount();
     this.container?.parentNode?.removeChild(this.container);
     this.container = null;
     this.root = null;
-
-    // React 렌더링 사이클과 충돌하지 않도록 unmount를 다음 tick으로 지연
-    setTimeout(() => {
-      this.root?.unmount();
-      this.container?.parentNode?.removeChild(this.container);
-    }, 0);
   }
 }

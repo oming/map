@@ -1,15 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
 
-import {
-  getVWorldVectorBackgroundUrl,
-  getVWorldVectorTileUrl,
-  VWORLD_API_KEY,
-  VWORLD_VECTOR_MAX_ZOOM,
-  VWORLD_VECTOR_MIN_ZOOM,
-} from "@/lib/vworld/config";
+import { VWORLD_API_KEY, VWORLD_VECTOR_MIN_ZOOM } from "@/lib/vworld/config";
 
 const SEOUL_CITY_HALL: [number, number] = [126.978, 37.5665];
 
@@ -17,12 +10,10 @@ import { PbfReader } from "pbf";
 import { VectorTile } from "@mapbox/vector-tile";
 import { fromVectorTileJs as tileToProtobuf } from "vt-pbf";
 import {
-  AttributionControl,
   FullscreenControl,
   GeolocateControl,
   GlobeControl,
   Map,
-  Marker,
   NavigationControl,
   Popup,
   ScaleControl,
@@ -30,11 +21,8 @@ import {
   addProtocol,
   setWorkerUrl,
   ErrorEvent,
+  Marker,
 } from "maplibre-gl";
-import MaplibreGeocoder, {
-  CarmenGeojsonFeature,
-  MaplibreGeocoderApi,
-} from "@maplibre/maplibre-gl-geocoder";
 import { Search } from "./search";
 import { ReactControl } from "./react-control";
 import { MapContext } from "./map-context";
@@ -54,22 +42,9 @@ export default function VWorldMap({
   useEffect(() => {
     if (!containerRef.current || mapInstance) return;
 
-    // addProtocol(protocol, async (params, abortController) => {
-    //   console.log("addProtocol", { params });
-    //   const url = params.url.replace(protocol + "://", "");
-
-    //   const t = await fetch(url);
-    //   if (t.status == 200) {
-    //     const buffer = await t.arrayBuffer();
-    //     return { data: buffer };
-    //   } else {
-    //     throw new Error(`Tile fetch error: ${t.statusText}`);
-    //   }
-    // });
-
     addProtocol(protocol, async (params, abortController) => {
       const url = params.url.replace(protocol + "://", "");
-      console.log("addProtocol url", url);
+      // console.log("addProtocol url", url);
 
       return fetch(url)
         .then((response) => response.arrayBuffer())
@@ -83,9 +58,9 @@ export default function VWorldMap({
                 ...layer.feature(i).properties,
               })),
           );
-          console.log("before tile", tile);
-          console.log(JSON.stringify(rows, null, 2));
-          return {
+          // console.log("before tile", tile);
+          // console.log(JSON.stringify(rows, null, 2));
+          const newTile: VectorTile = {
             layers: Object.entries(tile.layers).reduce(
               (acc, [layerId, layer]) => ({
                 ...acc,
@@ -101,6 +76,7 @@ export default function VWorldMap({
               {},
             ),
           };
+          return newTile;
         })
         .then((tile) => tileToProtobuf(tile).buffer)
         .then((data) => {
@@ -115,8 +91,8 @@ export default function VWorldMap({
               })),
           );
 
-          console.log("after tile", tile);
-          console.log(JSON.stringify(rows, null, 2));
+          // console.log("after tile", tile);
+          // console.log(JSON.stringify(rows, null, 2));
           return { data };
         });
     });
@@ -124,13 +100,13 @@ export default function VWorldMap({
     const map = new Map({
       container: containerRef.current,
       style: `/vworld.json?key=${VWORLD_API_KEY}`,
+      hash: true,
       center: SEOUL_CITY_HALL,
       zoom: 14,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
       // maxZoom: VWORLD_VECTOR_MAX_ZOOM,
-      hash: true,
       transformRequest: (url, resourceType) => {
-        console.log("transformRequest", { url, resourceType });
+        // console.log("transformRequest", { url, resourceType });
         if (
           url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
           resourceType === "Tile"
@@ -142,12 +118,12 @@ export default function VWorldMap({
     });
 
     map.setTransformRequest((url, resourceType) => {
-      console.log("setTransformRequest", { url, resourceType });
+      // console.log("setTransformRequest", { url, resourceType });
       if (
         url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
         resourceType === "Tile"
       ) {
-        console.log("gogogo");
+        // console.log("gogogo");
         return { url: protocol + "://" + url };
       }
       return undefined;
@@ -176,69 +152,8 @@ export default function VWorldMap({
       }),
     );
 
-    map.addControl(
-      new MaplibreGeocoder(
-        {
-          forwardGeocode: async (config) => {
-            const features: CarmenGeojsonFeature[] = [];
-            try {
-              const request = `https://nominatim.openstreetmap.org/search?q=${
-                config.query
-              }&format=geojson&polygon_geojson=1&addressdetails=1`;
-              const response = await fetch(request);
-              const geojson = await response.json();
-              for (const feature of geojson.features) {
-                const center: [number, number] = [
-                  feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
-                  feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2,
-                ];
-                const point: CarmenGeojsonFeature = {
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: center,
-                  },
-                  place_name: feature.properties.display_name,
-                  properties: feature.properties,
-                  text: feature.properties.display_name,
-                  place_type: ["place"],
-                  center,
-                };
-                features.push(point);
-              }
-            } catch (e) {
-              console.error(`Failed to forwardGeocode with error: ${e}`);
-            }
-
-            return {
-              type: "FeatureCollection",
-              features,
-            };
-          },
-        },
-        {
-          limit: 1000,
-          marker: true,
-          showResultMarkers: true,
-          maplibregl: maplibregl,
-        },
-      ),
-      "top-left",
-    );
-
-    map.addControl(new ReactControl(<Search />), "top-left");
-
-    const marker = new Marker({ draggable: true })
-      .setLngLat(SEOUL_CITY_HALL)
-      .addTo(map);
-
-    // function onDragEnd() {
-    //   const lngLat = marker.getLngLat();
-    //   coordinates.style.display = "block";
-    //   coordinates.innerHTML = `Longitude: ${lngLat.lng}<br />Latitude: ${lngLat.lat}`;
-    // }
-
-    // marker.on("dragend", onDragEnd);
+    const searchControl = new ReactControl(<Search map={map} />);
+    map.addControl(searchControl, "top-left");
 
     map.on("click", (e) => {
       const features = map.queryRenderedFeatures(e.point);
@@ -260,12 +175,11 @@ export default function VWorldMap({
       console.error("[MapLibre error]", e.error),
     );
 
-    // map.on("styleimagemissing", (e) => {
-    //   console.warn("[스프라이트에 없는 cl_id]", e.id);
-    // });
     map.setMissingStyleImageResolver((id) => {
       console.warn("[스프라이트에 없는 cl_id]", id);
     });
+
+    const marker = new Marker().setLngLat(SEOUL_CITY_HALL).addTo(map);
 
     setMapInstance(map);
     return () => {

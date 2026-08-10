@@ -39,9 +39,15 @@ export class ReactControl implements IControl {
   // }
 
   onRemove(): void {
-    this.root?.unmount();
+    // this.root?.unmount();
     this.container?.parentNode?.removeChild(this.container);
     this.container = null;
     this.root = null;
+
+    // React 렌더링 사이클과 충돌하지 않도록 unmount를 다음 tick으로 지연
+    setTimeout(() => {
+      this.root?.unmount();
+      this.container?.parentNode?.removeChild(this.container);
+    }, 0);
   }
 }

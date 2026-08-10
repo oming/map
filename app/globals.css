@@ -1,8 +1,6 @@
 @layer base, maplibre, components, utilities;
 
 @import "maplibre-gl/dist/maplibre-gl.css" layer(maplibre);
-@import "@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css"
-  layer(maplibre);
 
 @import "tailwindcss";
 @import "tw-animate-css";

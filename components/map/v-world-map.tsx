@@ -105,16 +105,16 @@ export default function VWorldMap({
       zoom: 14,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
       // maxZoom: VWORLD_VECTOR_MAX_ZOOM,
-      transformRequest: (url, resourceType) => {
-        // console.log("transformRequest", { url, resourceType });
-        if (
-          url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
-          resourceType === "Tile"
-        ) {
-          return { url: protocol + "://" + url };
-        }
-        return undefined;
-      },
+      // transformRequest: (url, resourceType) => {
+      //   // console.log("transformRequest", { url, resourceType });
+      //   if (
+      //     url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
+      //     resourceType === "Tile"
+      //   ) {
+      //     return { url: protocol + "://" + url };
+      //   }
+      //   return undefined;
+      // },
     });
 
     map.setTransformRequest((url, resourceType) => {

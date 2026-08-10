@@ -1,7 +1,7 @@
 // app/api/geo-search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-const VWORLD_KEY = process.env.VWORLD_API_KEY!;
+const VWORLD_KEY = process.env.VWORLD_API_KEY;
 const VWORLD_DOMAIN = process.env.VWORLD_DOMAIN;
 
 export type GeoSearchItem = {
@@ -19,11 +19,17 @@ export type GeoSearchItem = {
   bldnmdc?: string;
 };
 
+export type GeoSearchResponseError = {
+  code: string;
+  text: string;
+};
+
 export type GeoSearchResponse = {
   items: GeoSearchItem[];
   totalCount: number;
   page: number;
   totalPages: number;
+  error?: GeoSearchResponseError;
 };
 
 function normalize(item: any, kind: "PLACE" | "ADDRESS"): GeoSearchItem {
@@ -82,6 +88,11 @@ export async function GET(req: NextRequest) {
   };
   if (!query) return NextResponse.json(empty);
 
+  if (!VWORLD_KEY) {
+    console.warn("[geo-search] VWORLD_API_KEY가 설정되지 않았습니다.");
+    return NextResponse.json(empty);
+  }
+
   const params = new URLSearchParams({
     service: "search",
     request: "search",
@@ -104,7 +115,22 @@ export async function GET(req: NextRequest) {
   );
   const data = await res.json();
 
-  if (data?.response?.status !== "OK") return NextResponse.json(empty);
+  console.log("[geo-search] vworld response:", data);
+
+  if (data?.response?.status === "NOT_FOUND") return NextResponse.json(empty);
+  if (data?.response?.status === "ERROR") {
+    const err = data.response.error ?? {};
+    return NextResponse.json({
+      items: [],
+      totalCount: 0,
+      page,
+      totalPages: 0,
+      error: {
+        code: err.code ?? "UNKNOWN",
+        text: err.text ?? "알 수 없는 오류",
+      },
+    } satisfies GeoSearchResponse);
+  }
 
   const kind = type === "place" ? "PLACE" : "ADDRESS";
   const items = (data.response.result?.items ?? []).map((item: any) =>

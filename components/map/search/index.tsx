@@ -1,31 +1,33 @@
-// components/search.tsx
+// components/map/search/index.tsx
 "use client";
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import {
-  Search as SearchIcon,
-  XIcon,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  LocateFixed,
-} from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ButtonGroup } from "@/components/ui/button-group";
+  Collapsible,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useGeoSearch } from "@/hooks/use-geo-search";
 import { boundsToBBox } from "@/lib/geo-utils";
-import type { GeoSearchItem } from "@/app/api/geo-search/route";
+import type {
+  GeoSearchItem,
+  GeoSearchResponseError,
+} from "@/app/api/geo-search/route";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
-import { Spinner } from "../ui/spinner";
+
+import { SearchInput } from "./search-input";
+import { ResultList } from "./result-list";
+import { SearchPager } from "./search-pager";
+import { SearchError } from "./search-error";
 
 const RESULTS_SOURCE_ID = "search-results";
 const RESULTS_ICON_LAYER_ID = "search-results-icon";
@@ -309,7 +311,10 @@ export function Search({ map }: { map?: MaplibreMap }) {
   const totalCount = places.totalCount + addresses.totalCount;
   const hasResults = places.items.length > 0 || addresses.items.length > 0;
   const isSearching = places.isLoading || addresses.isLoading;
-  const hasError = !!(places.error || addresses.error);
+
+  // API ERROR 상태 추출 (활성 탭의 에러 우선)
+  const activeData = activeTab === "place" ? places : addresses;
+  const apiError: GeoSearchResponseError | undefined = activeData.responseError;
 
   React.useEffect(() => {
     if (!map) return;
@@ -329,7 +334,10 @@ export function Search({ map }: { map?: MaplibreMap }) {
       setShowSearchThisArea(true);
     };
     map.on("moveend", onMoveEnd);
-    return () => map.off("moveend", onMoveEnd);
+    return () => {
+      map.off("moveend", onMoveEnd);
+      return;
+    };
   }, [map, searchQuery, totalCount]);
 
   React.useEffect(() => {
@@ -459,242 +467,115 @@ export function Search({ map }: { map?: MaplibreMap }) {
     };
   }, [map]);
 
-  const renderList = (
-    items: GeoSearchItem[],
-    isLoading: boolean,
-    emptyLabel: string,
-    color: "blue" | "orange",
-  ) => {
-    if (isLoading && items.length === 0) {
-      return (
-        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-          <Spinner /> 검색 중...
-        </div>
-      );
-    }
-    if (items.length === 0) {
-      return (
-        <div className="py-10 text-center text-sm text-muted-foreground">
-          {emptyLabel}
-        </div>
-      );
-    }
-    return (
-      <ul className="space-y-0.5">
-        {items.map((item, idx) => {
-          const label = indexToLabel(idx);
-          const isSelected = item.id === selectedItemId;
-          return (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => handleSelect(item, label)}
-                className={`flex w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors ${
-                  isSelected
-                    ? "bg-accent ring-1 ring-primary/40"
-                    : "hover:bg-accent"
-                }`}
-              >
-                <span
-                  className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${
-                    color === "blue" ? "bg-blue-500" : "bg-orange-500"
-                  }`}
-                >
-                  {label}
-                </span>
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium">
-                    {item.title}
-                  </span>
-                  {item.subtitle && (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {item.subtitle}
-                    </span>
-                  )}
-                  {(item.category || item.zipcode) && (
-                    <span className="mt-0.5 truncate text-[11px] text-muted-foreground/70">
-                      {item.category}
-                      {item.category && item.zipcode && " · "}
-                      {item.zipcode && `우편 ${item.zipcode}`}
-                    </span>
-                  )}
-                </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    );
-  };
+  const activeItems = activeTab === "place" ? places.items : addresses.items;
 
-  const renderPager = (
-    page: number,
-    setPage: (p: number) => void,
-    totalPages: number,
-    isLoading: boolean,
-  ) => {
-    if (totalPages <= 1) return null;
-    return (
-      <div className="flex items-center justify-center gap-3 border-t py-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          disabled={page <= 1 || isLoading}
-          onClick={() => setPage(page - 1)}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          {page} / {totalPages}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          disabled={page >= totalPages || isLoading}
-          onClick={() => setPage(page + 1)}
-        >
-          <ChevronRight className="size-4" />
-        </Button>
-      </div>
-    );
-  };
+  // network error 포함: activeData.error는 API 응답 에러 + SWR 네트워크 에러 모두 포함
+  const error: Error | undefined = activeData.error ?? undefined;
 
   return (
     <>
-      <div className="w-[380px] max-w-[calc(100vw-2rem)]">
-        <ButtonGroup>
-          <form onSubmit={handleSubmit} className="flex-1">
-            <InputGroup className="rounded-lg bg-background text-foreground shadow-lg">
-              <InputGroupInput
-                placeholder="장소나 주소를 입력하세요..."
-                value={draftQuery}
-                // onValueChange={setDraftQuery}
-                onChange={(e) => setDraftQuery(e.target.value)}
-              />
-              <InputGroupAddon>
-                <SearchIcon className="size-4 text-muted-foreground" />
-              </InputGroupAddon>
-            </InputGroup>
-          </form>
-          {draftQuery && (
-            <ButtonGroup>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={handleClear}
-              >
-                <span className="sr-only">검색 닫기</span>
-                <XIcon className="size-4" />
-              </Button>
-            </ButtonGroup>
-          )}
-        </ButtonGroup>
+      <SearchInput
+        draftQuery={draftQuery}
+        onDraftChange={setDraftQuery}
+        onSubmit={handleSubmit}
+        onClear={handleClear}
+      />
 
-        {searchQuery && (
-          <div className="mt-2 overflow-hidden rounded-lg bg-background text-foreground shadow-lg">
-            {isSearching && !hasResults && (
-              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                <Spinner /> 검색 중...
-              </div>
-            )}
+      {searchQuery && (
+        <div className="mt-2 overflow-hidden rounded-lg bg-background text-foreground shadow-lg">
+          <SearchError
+            activeTabLoading={activeData.isLoading}
+            hasResults={hasResults}
+            error={error}
+          />
 
-            {hasError && (
-              <div className="py-10 text-center text-sm text-red-500">
-                검색 중 오류가 발생했습니다. 다시 시도해주세요.
-              </div>
-            )}
-
-            {!isSearching && !hasResults && (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                검색 결과가 없습니다.
-              </div>
-            )}
-
-            {hasResults && (
-              <>
-                <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-                  <div className="min-w-0 truncate text-sm">
-                    <span className="font-medium">{searchQuery}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      검색 결과: 총 {totalCount}건
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => setOpen((v) => !v)}
-                  >
-                    {open ? "접기" : "펼치기"}
-                  </Button>
+          {hasResults && (
+            <>
+              <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+                <div className="min-w-0 truncate text-sm">
+                  <span className="font-medium">{searchQuery}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    검색 결과: 총 {totalCount}건
+                  </span>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setOpen((v) => !v)}
+                >
+                  {open ? "접기" : "펼치기"}
+                </Button>
+              </div>
 
-                <Collapsible open={open}>
-                  <CollapsibleContent>
-                    <Tabs
-                      value={activeTab}
-                      onValueChange={(v) =>
-                        setActiveTab(v as "place" | "address")
-                      }
-                      className="flex max-h-[60vh] flex-col p-2"
-                    >
-                      <TabsList variant="default" className="w-full">
-                        <TabsTrigger value="place" className="flex-1">
-                          장소 ({places.totalCount}건)
-                        </TabsTrigger>
-                        <TabsTrigger value="address" className="flex-1">
-                          주소 ({addresses.totalCount}건)
-                        </TabsTrigger>
-                      </TabsList>
+              <Collapsible open={open}>
+                <CollapsibleContent>
+                  <Tabs
+                    value={activeTab}
+                    onValueChange={(v) =>
+                      setActiveTab(v as "place" | "address")
+                    }
+                    className="flex max-h-[60vh] flex-col p-2"
+                  >
+                    <TabsList variant="default" className="w-full">
+                      <TabsTrigger value="place" className="flex-1">
+                        장소 ({places.totalCount}건)
+                      </TabsTrigger>
+                      <TabsTrigger value="address" className="flex-1">
+                        주소 ({addresses.totalCount}건)
+                      </TabsTrigger>
+                    </TabsList>
 
-                      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                        <TabsContent value="place" className="m-0">
-                          {renderList(
-                            places.items,
-                            places.isLoading,
-                            "장소 검색 결과가 없습니다.",
-                            "blue",
-                          )}
-                        </TabsContent>
-                        <TabsContent value="address" className="m-0">
-                          {renderList(
-                            addresses.items,
-                            addresses.isLoading,
-                            "주소 검색 결과가 없습니다.",
-                            "orange",
-                          )}
-                        </TabsContent>
-                      </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                      <TabsContent value="place" className="m-0">
+                        <ResultList
+                          items={places.items}
+                          isLoading={places.isLoading}
+                          emptyLabel="장소 검색 결과가 없습니다."
+                          color="blue"
+                          selectedItemId={selectedItemId ?? null}
+                          onItemSelect={handleSelect}
+                          indexToLabel={indexToLabel}
+                        />
+                      </TabsContent>
+                      <TabsContent value="address" className="m-0">
+                        <ResultList
+                          items={addresses.items}
+                          isLoading={addresses.isLoading}
+                          emptyLabel="주소 검색 결과가 없습니다."
+                          color="orange"
+                          selectedItemId={selectedItemId ?? null}
+                          onItemSelect={handleSelect}
+                          indexToLabel={indexToLabel}
+                        />
+                      </TabsContent>
+                    </div>
 
-                      {activeTab === "place" &&
-                        renderPager(
-                          placePage,
-                          setPlacePage,
-                          places.totalPages,
-                          places.isLoading,
-                        )}
-                      {activeTab === "address" &&
-                        renderPager(
-                          addressPage,
-                          setAddressPage,
-                          addresses.totalPages,
-                          addresses.isLoading,
-                        )}
-                    </Tabs>
-                  </CollapsibleContent>
-                </Collapsible>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+                    {activeTab === "place" && (
+                      <SearchPager
+                        page={placePage}
+                        totalPages={places.totalPages}
+                        onPageChange={setPlacePage}
+                        isLoading={places.isLoading}
+                      />
+                    )}
+                    {activeTab === "address" && (
+                      <SearchPager
+                        page={addressPage}
+                        totalPages={addresses.totalPages}
+                        onPageChange={setAddressPage}
+                        isLoading={addresses.isLoading}
+                      />
+                    )}
+                  </Tabs>
+                </CollapsibleContent>
+              </Collapsible>
+            </>
+          )}
+        </div>
+      )}
 
       {map &&
         showSearchThisArea &&

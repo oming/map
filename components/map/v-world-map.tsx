@@ -17,12 +17,10 @@ import { VectorTile } from "@mapbox/vector-tile";
 import {
   FullscreenControl,
   GeolocateControl,
-  GlobeControl,
   Map,
   NavigationControl,
   Popup,
   ScaleControl,
-  TerrainControl,
   addProtocol,
   setWorkerUrl,
   ErrorEvent,
@@ -83,6 +81,11 @@ export default function VWorldMap({
       center: INITIAL_VIEW_CENTER,
       zoom: INITIAL_VIEW_ZOOM,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
+      // https://api.vworld.kr/req/wmts/1.0.0/{API_KEY}/WMTSCapabilities.xml 한반도 여백 좌표 범위 참여
+      maxBounds: [
+        [112.5, 27.059125784374068],
+        [140.625, 45.089035564831036],
+      ],
     });
 
     map.setTransformRequest((url, resourceType) => {
@@ -104,14 +107,6 @@ export default function VWorldMap({
       new ScaleControl({
         maxWidth: 80,
         unit: "imperial",
-      }),
-    );
-    map.addControl(new GlobeControl());
-
-    map.addControl(
-      new TerrainControl({
-        source: "vworldPoi",
-        exaggeration: 1,
       }),
     );
 

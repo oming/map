@@ -15,7 +15,7 @@ export async function downloadStyle(
 ): Promise<DownloadResult> {
   const url = STYLE_URL.replace("{apiKey}", apiKey);
 
-  console.log(`[1/4] V-World API에서 스타일 파일 다운로드: ${url}`);
+  console.log(`V-World API에서 스타일 파일 다운로드: ${url}`);
 
   const res = await fetch(url);
 
@@ -26,7 +26,7 @@ export async function downloadStyle(
   const js = await res.text();
   const size = Buffer.byteLength(js);
 
-  const tempDir = await mkdtemp(join(tmpdir(), "vworld-sprite-"));
+  const tempDir = await mkdtemp(join(tmpdir(), "vworld-style-"));
   const stylePath = join(tempDir, "vectorStylePoi.js");
 
   await writeFile(stylePath, js);

@@ -9,26 +9,41 @@ V-World 벡터 타일 기반 지도 애플리케이션에서 사용하는 **맵 
 ### 워크플로우
 
 ```
-V-World OpenLayers 스타일 JS 파일
+V-World OpenLayers 스타일 JS 파일 (vectorStylePoi.js)
         ↓
-  tools/style-builder/ (POI 스타일 변환)
+  tools/shared/ (다운로드 + StyleJson() 파싱 — 두 도구가 공유)
         ↓
-  poi-layers.json → app/data/poi-layers.json
-        ↓
-  MapLibre 렌더링 (클라이언트 사이드)
+  ┌─────────────────────────────┬──────────────────────────────┐
+  │ tools/sprite-builder/         │ tools/style-builder/          │
+  │ (POI 아이콘 스프라이트 생성)  │ (POI 스타일 변환, sprite.json │
+  │        ↓                     │  필요 — sprite-builder 이후 실행)│
+  │  /public/sprite/*             │        ↓                      │
+  └─────────────────────────────┴──────────────────────────────┘
+                                          ↓
+                                   data/poi-layers.json
+                                          ↓
+                                 MapLibre 렌더링 (클라이언트 사이드)
 
-tools/glyph-builder/ (나눔고딕 폰트 생성)
+tools/glyph-builder/ (나눔고딕 폰트 생성 — 수동/외부 프로세스)
         ↓
   /public/font/*
-
-tools/sprite-builder/ (POI 아이콘 스프라이트 생성)
-        ↓
-  /public/sprite/*
 ```
 
 ---
 
 ## 하위 디렉토리
+
+### [shared/](./shared/) — 공용 모듈
+
+`sprite-builder`와 `style-builder`가 함께 쓰는 코드. 둘 다 같은 V-World `vectorStylePoi.js`를 내려받아 같은 `StyleJson()` 함수를 파싱하기 때문에 이 부분을 공용화했습니다.
+
+- `.env.local` 로딩 (`env.ts`)
+- V-World 스타일 다운로드 (`download-style.ts`)
+- `StyleJson()` 실행/파싱 — eval 서브프로세스 방식 (`extract-style.ts` + `extract-style.cjs`)
+- 프로젝트 루트 탐색 (`project-root.ts`)
+- 공용 타입 (`types.ts`)
+
+실행 진입점이 아니므로 `package.json`은 없고, 에디터 타입체크용 `tsconfig.json`만 있습니다.
 
 ### [style-builder/](./style-builder/) — POI 스타일 변환기 ✅
 
@@ -40,13 +55,23 @@ V-World OpenLayers 스타일을 MapLibre symbol layer JSON으로 변환합니다
 - 좌표계 변환 (OpenLayers anchor → MapLibre icon-offset)
 - 폰트 매핑 (V-World 코드 → 나눔고딕 조합)
 
-**출력**: `poi-layers.json` (MapLibre layers 배열에 직접 삽입 가능)
+**출력**: `data/poi-layers.json` (MapLibre layers 배열에 직접 삽입 가능)
 
 ---
 
-### [glyph-builder/](./glyph-builder/) — 폰트 빌더 ✅
+### [sprite-builder/](./sprite-builder/) — 스프라이트 빌더 ✅
 
-MapLibre용 글리프(폰트) 파일을 생성합니다.
+POI 아이콘 스프라이트를 생성합니다.
+
+**역할**: V-World POI 아이콘을 MapLibre sprite 형식으로 변환
+
+**출력 위치**: `/public/sprite/*`
+
+---
+
+### [glyph-builder/](./glyph-builder/) — 폰트 빌더 🔧 수동 프로세스
+
+MapLibre용 글리프(폰트) 파일을 생성합니다. **자동화된 스크립트가 아니라, 수동으로 외부 웹사이트(maplibre.org/font-maker)를 사용하는 워크플로우**입니다 — 자세한 절차는 [glyph-builder/README.md](./glyph-builder/README.md) 참고.
 
 **지원 폰트**:
 - 나눔고딕 Regular
@@ -57,22 +82,11 @@ MapLibre용 글리프(폰트) 파일을 생성합니다.
 
 ---
 
-### [sprite-builder/](./sprite-builder/) — 스프라이트 빌더 ⚠️
-
-POI 아이콘 스프라이트를 생성합니다.
-
-**역할**: V-World POI 아이콘을 MapLibre sprite 형식으로 변환
-
-**출력 위치**: `/public/sprite/*`
-
-> ⚠️ **현재 상태**: 이 도구는 아직 완성되지 않았습니다. 수동으로 생성된 스프라이트 파일을 사용합니다.
-
----
-
 ## 개발 참고
 
 - 각 도구는 독립적으로 실행 가능하며, 필요 시 재생성 가능합니다.
-- `poi-layers.json`은 `app/data/poi-layers.json`으로 복사되어 애플리케이션에서 사용됩니다.
+- `style-builder`가 `data/poi-layers.json`에 직접 저장하며, 애플리케이션(`app/vworld.json/route.ts`)이 이 파일을 그대로 import합니다.
+- `style-builder`는 `sprite-builder`가 생성한 `public/sprite/sprite.json`을 참조하므로 sprite-builder를 먼저 실행해야 합니다.
 - 폰트와 스프라이트는 `/public/` 디렉토리에 정적 파일로 제공됩니다.
 
 ---
@@ -82,12 +96,12 @@ POI 아이콘 스프라이트를 생성합니다.
 프로젝트 루트에서 다음 명령어로 실행할 수 있습니다:
 
 ```bash
-pnpm build:style-builder   # POI 스타일 변환만 실행
-pnpm build:sprite-builder  # 스프라이트 생성만 실행
-pnpm build:tools           # 모든 도구 실행 (style + sprite)
+pnpm build:style-builder   # POI 스타일 변환만 실행 (tsx tools/style-builder/build.ts)
+pnpm build:sprite-builder  # 스프라이트 생성만 실행 (tsx tools/sprite-builder/build.ts)
+pnpm build:tools           # sprite-builder → style-builder 순서로 모두 실행
 ```
 
-> `build:glyph-builder`는 현재 미구현 상태입니다.
+> `build:glyph-builder`는 현재 미구현 상태입니다 (glyph-builder는 수동 프로세스이므로 자동화 스크립트가 없습니다).
 
 ---
 
@@ -95,6 +109,6 @@ pnpm build:tools           # 모든 도구 실행 (style + sprite)
 
 | 도구 | 상태 | 설명 |
 |------|------|------|
-| style-builder | ✅ 완료 | V-World POI 스타일 변환 완성 |
-| glyph-builder | ✅ 완료 | 나눔고딕 폰트 생성 도구 완성 |
-| sprite-builder | ⚠️ 미완료 | 구현 필요 (TODO 목록 참조) |
+| style-builder | ✅ 완료 | V-World POI 스타일 변환, TypeScript 파이프라인 |
+| sprite-builder | ✅ 완료 | V-World POI 아이콘 스프라이트 생성, TypeScript 파이프라인 |
+| glyph-builder | 🔧 수동 프로세스 | 자동화 스크립트 없음, 외부 웹사이트 기반 수동 워크플로우 |

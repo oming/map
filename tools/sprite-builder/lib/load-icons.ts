@@ -1,13 +1,12 @@
 import sharp from "sharp";
 import { Resvg } from "@resvg/resvg-js";
-import type { StyleData, IconImage } from "./types.js";
+import type { StyleData, IconImage } from "../../shared/types.js";
 
 export async function loadIcons(styleData: StyleData): Promise<IconImage[]> {
   const icons: IconImage[] = [];
   let skipped = 0;
 
   for (const [clId, style] of Object.entries(styleData)) {
-    let decodeError = 0;
     const symbolStyle = style.symbolStyle || {};
     const dataUri = symbolStyle.symbolImageCn;
 

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "build:style-builder": "bash tools/style-builder/run.sh",
+    "build:style-builder": "tsx tools/style-builder/build.ts",
     "build:sprite-builder": "tsx tools/sprite-builder/build.ts",
     "build:glyph-builder": "echo 'glyph-builder is not implemented yet. See tools/glyph-builder/README.md'",
     "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder"

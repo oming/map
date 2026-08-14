@@ -1,13 +1,10 @@
 import sharp from "sharp";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { SpriteJson } from "./types.js";
+import { join } from "node:path";
+import type { SpriteJson } from "../../shared/types.js";
+import { getProjectRoot } from "../../shared/project-root.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// lib/ → sprite-builder-new/ → tools/ → 프로젝트 루트 (3단계 상향)
-const projectRoot = join(__dirname, "..", "..", "..");
-const outputDir = join(projectRoot, "public", "sprite");
+const outputDir = join(getProjectRoot(), "public", "sprite");
 
 export async function writeSprite(
   spriteBuffer: Buffer,

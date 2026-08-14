@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import type { IconImage, SpriteJson } from "./types.js";
+import type { IconImage, SpriteJson } from "../../shared/types.js";
 
 const PADDING = 1;
 const MAX_WIDTH = 4096;

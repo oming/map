@@ -1,45 +1,20 @@
-import { readFileSync } from "node:fs";
-import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { rm } from "node:fs/promises";
 
-import { downloadStyle } from "./lib/download.js";
-import { extractStyle } from "./lib/extract.js";
+import { loadEnvFile, resolveVworldApiKey } from "../shared/env.js";
+import { downloadStyle } from "../shared/download-style.js";
+import { extractStyle } from "../shared/extract-style.js";
 import { loadIcons } from "./lib/load-icons.js";
 import { packSprite } from "./lib/pack.js";
 import { writeSprite } from "./lib/write.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function loadEnv(): void {
-  const envPath = join(__dirname, "../..", ".env.local");
-
-  if (!existsSync(envPath)) return;
-
-  const lines = readFileSync(envPath, "utf8").split("\n");
-
-  for (const line of lines) {
-    if (!line || line.startsWith("#") || !line.includes("=")) continue;
-
-    const idx = line.indexOf("=");
-    const key = line.slice(0, idx).trim();
-    const value = line
-      .slice(idx + 1)
-      .trim()
-      .replace(/^['"]|['"]$/g, "");
-
-    if (process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
-
 async function main(): Promise<void> {
-  loadEnv();
+  loadEnvFile(join(__dirname, "../..", ".env.local"));
 
-  const apiKey =
-    process.env.VWORLD_API_KEY ?? process.env.NEXT_PUBLIC_VWORLD_API_KEY;
+  const apiKey = resolveVworldApiKey();
 
   if (!apiKey) {
     console.error("⚠ VWORLD_API_KEY 환경 변수가 설정되지 않았습니다.");
@@ -54,6 +29,7 @@ async function main(): Promise<void> {
   let tempDir: string | null = null;
 
   try {
+    console.log("[1/4] V-World 스타일 파일 다운로드");
     const { tempDir: td, stylePath } = await downloadStyle(apiKey);
     tempDir = td;
 

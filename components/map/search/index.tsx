@@ -244,7 +244,7 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
       {map &&
         showSearchThisArea &&
         createPortal(
-          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-10 flex justify-center">
             <Button
               type="button"
               size="lg"

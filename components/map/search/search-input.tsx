@@ -16,6 +16,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 interface SearchInputProps {
   draftQuery: string;
   onDraftChange: (value: string) => void;
+  autoFocus?: boolean;
   onSubmit: (e: React.FormEvent) => void;
   onClear: () => void;
   showClearButton: boolean;
@@ -29,6 +30,7 @@ export function SearchInput({
   onClear,
   showClearButton,
   className,
+  autoFocus = false,
 }: SearchInputProps) {
   return (
     <div className={cn("w-[380px] max-w-[calc(100vw-2rem)]", className)}>
@@ -39,6 +41,7 @@ export function SearchInput({
               <SearchIcon className="text-muted-foreground" />
             </InputGroupAddon>
             <InputGroupInput
+              autoFocus={autoFocus}
               placeholder="장소나 주소를 입력하세요..."
               value={draftQuery}
               onChange={(e) => onDraftChange(e.target.value)}

@@ -254,12 +254,16 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
               <Button
                 type="button"
                 size={searchQuery ? "default" : "icon"}
-                className={cn(searchQuery && "max-w-[70vw]")}
+                variant="ghost"
+                className={cn(
+                  searchQuery && "max-w-[70vw]",
+                  "rounded-lg bg-background text-foreground shadow-lg",
+                )}
                 aria-label="검색"
               />
             }
           >
-            <SearchIcon className="size-4 shrink-0" />
+            <SearchIcon className="size-4 shrink-0 stroke-3" />
             {searchQuery && <span className="truncate">{searchQuery}</span>}
           </DrawerTrigger>
           <DrawerContent>
@@ -271,6 +275,7 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
               <SearchInput
                 className="w-full"
                 draftQuery={draftQuery}
+                autoFocus
                 onDraftChange={setDraftQuery}
                 onSubmit={handleSubmit}
                 onClear={handleClear}

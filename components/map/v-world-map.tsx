@@ -8,7 +8,6 @@ const SEOUL_CITY_HALL: [number, number] = [126.978, 37.5665];
 
 import { PbfReader } from "pbf";
 import { VectorTile } from "@mapbox/vector-tile";
-import { fromVectorTileJs as tileToProtobuf } from "vt-pbf";
 import {
   FullscreenControl,
   GeolocateControl,
@@ -26,6 +25,7 @@ import {
 import { Search } from "./search";
 import { ReactControl } from "./react-control";
 import { MapContext } from "./map-context";
+import { fromVectorTileJs } from "@maplibre/vt-pbf";
 
 setWorkerUrl("/maplibre-worker/maplibre-gl-worker.mjs");
 
@@ -78,23 +78,25 @@ export default function VWorldMap({
           };
           return newTile;
         })
-        .then((tile) => tileToProtobuf(tile).buffer)
-        .then((data) => {
-          const tile = new VectorTile(new PbfReader(data));
+        .then((tile) => fromVectorTileJs(tile).buffer)
+        .then((data) => ({ data }));
+      // .then((tile) => fromVectorTileJs(tile))
+      // .then((data) => {
+      //   const tile = new VectorTile(new PbfReader(data));
 
-          const rows = Object.entries(tile.layers).flatMap(
-            ([layerName, layer]) =>
-              Array.from({ length: layer.length }, (_, i) => ({
-                layerName,
-                featureIndex: i,
-                ...layer.feature(i).properties,
-              })),
-          );
+      //   // const rows = Object.entries(tile.layers).flatMap(
+      //   //   ([layerName, layer]) =>
+      //   //     Array.from({ length: layer.length }, (_, i) => ({
+      //   //       layerName,
+      //   //       featureIndex: i,
+      //   //       ...layer.feature(i).properties,
+      //   //     })),
+      //   // );
 
-          // console.log("after tile", tile);
-          // console.log(JSON.stringify(rows, null, 2));
-          return { data };
-        });
+      //   // console.log("after tile", tile);
+      //   // console.log(JSON.stringify(rows, null, 2));
+      //   return { data: fromVectorTileJs(tile).buffer };
+      // })
     });
 
     const map = new Map({
@@ -152,7 +154,7 @@ export default function VWorldMap({
       }),
     );
 
-    const searchControl = new ReactControl(<Search map={map} />);
+    const searchControl = new ReactControl(<Search />);
     map.addControl(searchControl, "top-left");
 
     map.on("click", (e) => {

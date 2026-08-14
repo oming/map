@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# maplibre-gl worker (postinstall로 node_modules에서 복사됨)
+/public/maplibre-gl-worker.mjs
+/public/maplibre-gl-shared.mjs
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

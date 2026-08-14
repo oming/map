@@ -32,7 +32,7 @@ import { ReactControl } from "./react-control";
 import { MapContext } from "./map-context";
 import { fromVectorTileJs } from "@maplibre/vt-pbf";
 
-setWorkerUrl("/maplibre-worker/maplibre-gl-worker.mjs");
+setWorkerUrl("/maplibre-gl-worker.mjs");
 
 const protocol = "reverse";
 

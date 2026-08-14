@@ -18,6 +18,7 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 - 지도는 클라이언트 전용. `components/map/v-world-map.tsx`는 `ssr: false`로만 로드한다 (`app/map-no-ssr.tsx`).
 - `app/vworld.json/route.ts`가 요청마다 `data/poi-layers.json` + `lib/vworld/config.ts`를 읽어 MapLibre 스타일을 생성한다. POI 레이어나 타일 소스를 바꾸면 두 파일을 함께 수정한다.
 - `reverse://` 프로토콜(`v-world-map.tsx`)이 V-World 벡터 타일 응답을 가로채 클라이언트에서 재처리한다. 타일이 안 보이면 여기부터 확인한다.
+- 콘솔에 반복적으로 뜨는 `[MapLibre error] Error: Unimplemented type: 4`는 위 벡터 타일 재처리 과정에서 발생하는 기존 PBF 디코딩 이슈이며 화면 렌더링에는 영향 없음. 새 변경과 무관하게 항상 나타나므로 원인 조사/수정 시도하지 말고 무시한다.
 - `useMap()`(`components/map/map-context.tsx`)은 `VWorldMap` 하위에서만 동작한다.
 - `/api/geo-search`가 정의하는 `GeoSearchItem` 타입을 `hooks/use-geo-search.ts`, `hooks/use-search-map-layers.ts`가 그대로 소비한다. 응답 필드를 바꾸면 세 파일을 함께 확인한다.
 

@@ -30,18 +30,20 @@ export class ReactControl implements IControl {
     this.root.render(mappedElement);
     return this.container;
   }
-  // onAdd(map: MaplibreMap): HTMLElement {
-  //   this.container = document.createElement("div");
-  //   this.root = createRoot(this.container);
-  //   this.root.render(
-  //     React.cloneElement(this.component as React.ReactElement, { map }),
-  //   );
-  //   return this.container;
-  // }
 
   onRemove(): void {
-    this.container?.parentNode?.removeChild(this.container);
-    this.container = null;
+    // map.remove()가 React effect cleanup 도중(=React가 아직 렌더링/커밋 중인 시점)
+    // 동기 호출될 수 있어, 같은 틱에서 root.unmount()를 호출하면 React가
+    // "Attempted to synchronously unmount a root while React was already
+    // rendering" 경고와 함께 충돌한다. 현재 렌더 사이클이 끝난 뒤 언마운트하도록
+    // 다음 태스크로 미룬다.
+    const root = this.root;
+    const container = this.container;
     this.root = null;
+    this.container = null;
+    setTimeout(() => {
+      root?.unmount();
+      container?.parentNode?.removeChild(container);
+    }, 0);
   }
 }

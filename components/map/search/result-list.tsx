@@ -2,35 +2,24 @@
 "use client";
 
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
+import { indexToLabel } from "@/lib/geo-utils";
 import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
 
 interface ResultListProps {
   items: GeoSearchItem[];
-  isLoading: boolean;
   emptyLabel: string;
   color: "blue" | "orange";
   selectedItemId: string | null;
   onItemSelect: (item: GeoSearchItem, label: string) => void;
-  indexToLabel: (idx: number) => string;
 }
 
 export function ResultList({
   items,
-  isLoading,
   emptyLabel,
   color,
   selectedItemId,
   onItemSelect,
-  indexToLabel,
 }: ResultListProps) {
-  if (isLoading && items.length === 0) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-        <Spinner /> 검색 중...
-      </div>
-    );
-  }
   if (items.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">

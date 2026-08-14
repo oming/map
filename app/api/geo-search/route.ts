@@ -115,11 +115,10 @@ export async function GET(req: NextRequest) {
   );
   const data = await res.json();
 
-  console.log("[geo-search] vworld response:", data);
-
   if (data?.response?.status === "NOT_FOUND") return NextResponse.json(empty);
   if (data?.response?.status === "ERROR") {
     const err = data.response.error ?? {};
+    console.error("[geo-search] vworld error response:", data);
     return NextResponse.json({
       items: [],
       totalCount: 0,

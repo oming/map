@@ -1,7 +1,6 @@
 // hooks/use-geo-search.ts
 "use client";
 
-import * as React from "react";
 import useSWR from "swr";
 import type {
   GeoSearchResponse,
@@ -14,34 +13,44 @@ const fetcher = (url: string): Promise<GeoSearchResponse> =>
     return res.json();
   });
 
-export function useGeoSearch(params: {
+export interface UseGeoSearchParams {
   query: string;
   type: "place" | "address";
   page: number;
   bbox?: string;
   size?: number;
-}) {
-  const { query, type, page, bbox, size = 10 } = params;
+}
 
-  // 300ms debounce: 입력 중 연속 API 호출 방지
-  const [debouncedQuery, setDebouncedQuery] = React.useState(query);
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+export interface UseGeoSearchResult {
+  items: GeoSearchResponse["items"];
+  totalCount: number;
+  totalPages: number;
+  isLoading: boolean;
+  error: Error | undefined;
+  hasError: boolean;
+  responseError: GeoSearchResponseError | undefined;
+}
 
-  React.useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (!query) {
-      setDebouncedQuery("");
-      return;
-    }
-    timerRef.current = setTimeout(() => setDebouncedQuery(query), 300);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [query]);
+const EMPTY_RESULT: UseGeoSearchResult = {
+  items: [],
+  totalCount: 0,
+  totalPages: 0,
+  isLoading: false,
+  error: undefined,
+  hasError: false,
+  responseError: undefined,
+};
 
-  const key = debouncedQuery
+export function useGeoSearch({
+  query,
+  type,
+  page,
+  bbox,
+  size = 10,
+}: UseGeoSearchParams): UseGeoSearchResult {
+  const key = query
     ? `/api/geo-search?${new URLSearchParams({
-        query: debouncedQuery,
+        query,
         type,
         page: String(page),
         size: String(size),
@@ -60,22 +69,10 @@ export function useGeoSearch(params: {
 
   // key가 null(검색어 없음)이면 keepPreviousData로 남아있는 이전 데이터를 무시하고
   // 명시적으로 빈 결과를 반환한다. 그렇지 않으면 검색어를 지워도 마지막 결과가 남는다.
-  if (!key) {
-    return {
-      items: [],
-      totalCount: 0,
-      totalPages: 0,
-      isLoading: false,
-      error: undefined,
-      hasError: false,
-      responseError: undefined,
-    };
-  }
+  if (!key) return EMPTY_RESULT;
 
-  const responseError: GeoSearchResponseError | undefined = data?.error;
-  const error: Error | undefined = responseError
-    ? new Error(responseError.text)
-    : swrError;
+  const responseError = data?.error;
+  const error = responseError ? new Error(responseError.text) : swrError;
 
   return {
     items: data?.items ?? [],

@@ -8,6 +8,8 @@ import { viewportBBoxWithMinRadius, indexToLabel } from "@/lib/geo-utils";
 const RESULTS_SOURCE_ID = "search-results";
 const RESULTS_ICON_LAYER_ID = "search-results-icon";
 const RESULTS_LABEL_LAYER_ID = "search-results-label";
+const RESULTS_CLUSTER_LAYER_ID = "search-results-cluster";
+const RESULTS_CLUSTER_COUNT_LAYER_ID = "search-results-cluster-count";
 const SELECTED_SOURCE_ID = "search-selected";
 const SELECTED_ICON_LAYER_ID = "search-selected-icon";
 const SELECTED_LABEL_LAYER_ID = "search-selected-label";
@@ -134,15 +136,69 @@ function ensureLayers(map: MaplibreMap) {
     map.addSource(RESULTS_SOURCE_ID, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
+      cluster: true,
+      clusterMaxZoom: 17,
+      clusterRadius: 50,
+      clusterProperties: {
+        // 클러스터 안 포인트는 항상 같은 탭(장소/주소) 소속이라 colorKey가
+        // 동일함 — 대표값 하나만 끌어와 클러스터 원 색상에 사용한다.
+        colorKey: [
+          ["coalesce", ["accumulated"], ["get", "colorKey"]],
+          ["get", "colorKey"],
+        ],
+      },
     });
 
     registerPinImages(map, "blue", RESULTS_PIN_WIDTH);
     registerPinImages(map, "orange", RESULTS_PIN_WIDTH);
 
     map.addLayer({
+      id: RESULTS_CLUSTER_LAYER_ID,
+      type: "circle",
+      source: RESULTS_SOURCE_ID,
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": [
+          "match",
+          ["get", "colorKey"],
+          "orange",
+          PIN_COLORS.orange,
+          PIN_COLORS.blue,
+        ],
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          16,
+          5,
+          20,
+          15,
+          24,
+        ],
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+      },
+    });
+
+    map.addLayer({
+      id: RESULTS_CLUSTER_COUNT_LAYER_ID,
+      type: "symbol",
+      source: RESULTS_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": ["get", "point_count_abbreviated"],
+        "text-font": ["NanumGothic Bold"],
+        "text-size": 12,
+      },
+      paint: {
+        "text-color": "#ffffff",
+      },
+    });
+
+    map.addLayer({
       id: RESULTS_ICON_LAYER_ID,
       type: "symbol",
       source: RESULTS_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
       layout: {
         "icon-image": [
           "concat",
@@ -163,6 +219,7 @@ function ensureLayers(map: MaplibreMap) {
       id: RESULTS_LABEL_LAYER_ID,
       type: "symbol",
       source: RESULTS_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
       layout: {
         "text-field": ["get", "title"],
         "text-size": 12,
@@ -353,17 +410,45 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     const onEnter = () => (map.getCanvas().style.cursor = "pointer");
     const onLeave = () => (map.getCanvas().style.cursor = "");
 
+    const onClusterClick = (
+      e: maplibregl.MapMouseEvent & { features?: MapGeoJSONFeature[] },
+    ) => {
+      const feature = e.features?.[0];
+      if (!feature || feature.geometry.type !== "Point") return;
+      const center = feature.geometry.coordinates as [number, number];
+      const clusterId = feature.properties?.cluster_id;
+      const source = map.getSource(RESULTS_SOURCE_ID) as
+        | maplibregl.GeoJSONSource
+        | undefined;
+      if (clusterId == null || !source) return;
+
+      source
+        .getClusterExpansionZoom(clusterId)
+        .then((zoom) => {
+          isProgrammaticMoveRef.current = true;
+          map.easeTo({ center, zoom });
+        })
+        .catch(() => {});
+    };
+
     for (const id of [RESULTS_ICON_LAYER_ID, SELECTED_ICON_LAYER_ID]) {
       map.on("click", id, onClick);
       map.on("mouseenter", id, onEnter);
       map.on("mouseleave", id, onLeave);
     }
+    map.on("click", RESULTS_CLUSTER_LAYER_ID, onClusterClick);
+    map.on("mouseenter", RESULTS_CLUSTER_LAYER_ID, onEnter);
+    map.on("mouseleave", RESULTS_CLUSTER_LAYER_ID, onLeave);
+
     return () => {
       for (const id of [RESULTS_ICON_LAYER_ID, SELECTED_ICON_LAYER_ID]) {
         map.off("click", id, onClick);
         map.off("mouseenter", id, onEnter);
         map.off("mouseleave", id, onLeave);
       }
+      map.off("click", RESULTS_CLUSTER_LAYER_ID, onClusterClick);
+      map.off("mouseenter", RESULTS_CLUSTER_LAYER_ID, onEnter);
+      map.off("mouseleave", RESULTS_CLUSTER_LAYER_ID, onLeave);
       popup.remove();
     };
   }, [map]);

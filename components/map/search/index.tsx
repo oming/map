@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tabs";
 import { useGeoSearch } from "@/hooks/use-geo-search";
 import { useSearchMapLayers } from "@/hooks/use-search-map-layers";
+import { viewportBBoxWithMinRadius } from "@/lib/geo-utils";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { SearchInput } from "./search-input";
@@ -31,6 +32,10 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchBbox, setSearchBbox] = useState<string | undefined>(undefined);
+  // true면 searchBbox가 "현재 위치 기준 자동 필터"임을 뜻한다(명시적 "이 위치에서
+  // 검색"과 구분) — 이 경우에만 0건일 때 자동으로 전국 검색으로 폴백한다.
+  const [biasApplied, setBiasApplied] = useState(false);
+  const [isNationwideFallback, setIsNationwideFallback] = useState(false);
   const [activeTab, setActiveTab] = useState<"place" | "address">("place");
 
   const [placePage, setPlacePage] = useState(1);
@@ -56,6 +61,30 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     bbox: searchBbox,
   });
 
+  const totalCount = places.totalCount + addresses.totalCount;
+
+  // 현재 위치 기준 자동 필터(biasApplied)로 검색했는데 결과가 0건이면,
+  // bbox 없이 전국 재검색으로 자동 폴백한다. "이 위치에서 검색"(명시적 스코프)
+  // 경로는 biasApplied가 false이므로 대상에서 제외된다.
+  useEffect(() => {
+    if (!searchQuery || !biasApplied) return;
+    if (places.isLoading || addresses.isLoading) return;
+    if (places.error || addresses.error) return;
+    if (totalCount > 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSearchBbox(undefined);
+    setBiasApplied(false);
+    setIsNationwideFallback(true);
+  }, [
+    searchQuery,
+    biasApplied,
+    places.isLoading,
+    addresses.isLoading,
+    places.error,
+    addresses.error,
+    totalCount,
+  ]);
+
   const {
     selectedItemId,
     handleSelect,
@@ -68,8 +97,11 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     placesItems: places.items,
     addressesItems: addresses.items,
     searchQuery,
-    totalCount: places.totalCount + addresses.totalCount,
-    onBBoxChange: setSearchBbox,
+    totalCount,
+    onBBoxChange: (bbox) => {
+      setSearchBbox(bbox);
+      setBiasApplied(false);
+    },
     onToggleOpen: setOpen,
   });
 
@@ -80,7 +112,11 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     e.preventDefault();
     const q = draftQuery.trim();
     setSearchQuery(q);
-    setSearchBbox(undefined);
+    setSearchBbox(
+      map ? viewportBBoxWithMinRadius(map.getBounds()) : undefined,
+    );
+    setBiasApplied(!!map);
+    setIsNationwideFallback(false);
     setOpen(true);
     clearSelection();
   };
@@ -89,6 +125,8 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     setDraftQuery("");
     setSearchQuery("");
     setSearchBbox(undefined);
+    setBiasApplied(false);
+    setIsNationwideFallback(false);
     setOpen(false);
     clearSelection();
   };
@@ -120,7 +158,7 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
                   <span className="font-medium">{searchQuery}</span>
                   <span className="text-muted-foreground">
                     {" "}
-                    검색 결과: 총 {places.totalCount + addresses.totalCount}건
+                    검색 결과: 총 {totalCount}건
                   </span>
                 </div>
                 <Button
@@ -133,6 +171,12 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
                   {open ? "접기" : "펼치기"}
                 </Button>
               </div>
+
+              {isNationwideFallback && (
+                <div className="border-b px-3 py-1.5 text-xs text-muted-foreground">
+                  현재 위치 근처에 결과가 없어 전국 검색 결과를 표시합니다.
+                </div>
+              )}
 
               <Collapsible open={open}>
                 <CollapsibleContent>

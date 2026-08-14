@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { VWORLD_API_KEY, VWORLD_VECTOR_MIN_ZOOM } from "@/lib/vworld/config";
 
 const SEOUL_CITY_HALL: [number, number] = [126.978, 37.5665];
+// 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
+const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
+const INITIAL_VIEW_ZOOM = 7;
 
 import { PbfReader } from "pbf";
 import { VectorTile } from "@mapbox/vector-tile";
@@ -103,8 +106,8 @@ export default function VWorldMap({
       container: containerRef.current,
       style: `/vworld.json?key=${VWORLD_API_KEY}`,
       hash: true,
-      center: SEOUL_CITY_HALL,
-      zoom: 14,
+      center: INITIAL_VIEW_CENTER,
+      zoom: INITIAL_VIEW_ZOOM,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
       // maxZoom: VWORLD_VECTOR_MAX_ZOOM,
       // transformRequest: (url, resourceType) => {

@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
-import { boundsToBBox, indexToLabel } from "@/lib/geo-utils";
+import { viewportBBoxWithMinRadius, indexToLabel } from "@/lib/geo-utils";
 
 const RESULTS_SOURCE_ID = "search-results";
 const RESULTS_ICON_LAYER_ID = "search-results-icon";
@@ -128,18 +128,6 @@ function toSelectedFeatureCollection(
       },
     ],
   };
-}
-
-function computeBoundsFromPoints(
-  points: { lon: number; lat: number }[],
-): maplibregl.LngLatBounds | null {
-  if (points.length === 0) return null;
-  const bounds = new maplibregl.LngLatBounds(
-    [points[0].lon, points[0].lat],
-    [points[0].lon, points[0].lat],
-  );
-  for (const p of points.slice(1)) bounds.extend([p.lon, p.lat]);
-  return bounds;
 }
 
 function ensureLayers(map: MaplibreMap) {
@@ -310,7 +298,7 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     else map.once("load", setup);
   }, [map]);
 
-  // 결과 렌더링 + fitBounds
+  // 결과 렌더링 (지도 이동/줌은 하지 않음 — 검색 자체가 이미 현재 뷰 기준이므로)
   useEffect(() => {
     if (!map) return;
     const activeItems = activeTab === "place" ? placesItems : addressesItems;
@@ -319,14 +307,6 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
       | maplibregl.GeoJSONSource
       | undefined;
     source?.setData(toResultsFeatureCollection(activeItems));
-
-    if (activeItems.length === 0) return;
-
-    const bounds = computeBoundsFromPoints(activeItems);
-    if (!bounds) return;
-
-    isProgrammaticMoveRef.current = true;
-    map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 500 });
   }, [map, activeTab, placesItems, addressesItems]);
 
   // 선택 항목 핀 + flyTo
@@ -413,7 +393,7 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
   // 이 위치에서 검색 실행
   const handleSearchThisArea = () => {
     if (!map || !searchQuery) return;
-    onBBoxChange(boundsToBBox(map.getBounds()));
+    onBBoxChange(viewportBBoxWithMinRadius(map.getBounds()));
     setShowSearchThisArea(false);
   };
 

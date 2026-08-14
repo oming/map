@@ -22,5 +22,5 @@ export function loadEnvFile(envPath: string): void {
 }
 
 export function resolveVworldApiKey(): string | undefined {
-  return process.env.VWORLD_API_KEY ?? process.env.NEXT_PUBLIC_VWORLD_API_KEY;
+  return process.env.NEXT_PUBLIC_VWORLD_API_KEY;
 }

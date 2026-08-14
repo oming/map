@@ -28,5 +28,5 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 
 ## Important Constraints
 
-- 필수 env(`.env.local`): `NEXT_PUBLIC_VWORLD_API_KEY`, `VWORLD_API_KEY`, `NEXT_PUBLIC_URL`. 없으면 지도/검색이 동작하지 않는다.
+- 필수 env(`.env.local`): `NEXT_PUBLIC_VWORLD_API_KEY`, `NEXT_PUBLIC_SITE_URL`. 없으면 지도/검색이 동작하지 않는다.
 - `pnpm-workspace.yaml`의 `unrs-resolver` 빌드 비활성화 설정을 임의로 바꾸거나 강제 설치하지 않는다.

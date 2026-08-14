@@ -46,7 +46,7 @@ V-World API (vectorStylePoi.js)
 
 ### 필요 환경 변수
 
-- `VWORLD_API_KEY` — V-World API 키 (`.env.local`에서 자동 읽기)
+- `NEXT_PUBLIC_VWORLD_API_KEY` — V-World API 키 (`.env.local`에서 자동 읽기)
 
 ## 의존 관계
 

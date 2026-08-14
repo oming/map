@@ -1,8 +1,10 @@
 // app/api/geo-search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-
-const VWORLD_KEY = process.env.VWORLD_API_KEY;
-const VWORLD_DOMAIN = process.env.VWORLD_DOMAIN;
+import {
+  VWORLD_API_KEY,
+  VWORLD_DOMAIN,
+  getVWorldSearchUrl,
+} from "@/lib/vworld/config";
 
 export type GeoSearchItem = {
   id: string;
@@ -88,8 +90,8 @@ export async function GET(req: NextRequest) {
   };
   if (!query) return NextResponse.json(empty);
 
-  if (!VWORLD_KEY) {
-    console.warn("[geo-search] VWORLD_API_KEY가 설정되지 않았습니다.");
+  if (!VWORLD_API_KEY) {
+    console.warn("[geo-search] NEXT_PUBLIC_VWORLD_API_KEY가 설정되지 않았습니다.");
     return NextResponse.json(empty);
   }
 
@@ -104,15 +106,13 @@ export async function GET(req: NextRequest) {
     type,
     format: "json",
     errorFormat: "json",
-    key: VWORLD_KEY,
+    key: VWORLD_API_KEY,
     ...(type === "address" ? { category: "road" } : {}),
     ...(VWORLD_DOMAIN ? { domain: VWORLD_DOMAIN } : {}),
     ...(bbox ? { bbox } : {}),
   });
 
-  const res = await fetch(
-    `https://api.vworld.kr/req/search?${params.toString()}`,
-  );
+  const res = await fetch(`${getVWorldSearchUrl()}?${params.toString()}`);
   const data = await res.json();
 
   if (data?.response?.status === "NOT_FOUND") return NextResponse.json(empty);

@@ -4,11 +4,10 @@ import poiLayersRaw from "@/data/poi-layers.json";
 import {
   getVWorldVectorBackgroundUrl,
   getVWorldVectorTileUrl,
+  SITE_URL,
   VWORLD_VECTOR_MAX_ZOOM,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
-
-export const publicUrl = process.env.NEXT_PUBLIC_URL ?? "";
 
 export async function GET(request: NextRequest) {
   // 1. URL에서 searchParams(쿼리 스트링) 추출
@@ -27,8 +26,8 @@ export async function GET(request: NextRequest) {
   const style: StyleSpecification = {
     version: 8,
     name: "V-World",
-    sprite: `${publicUrl}/sprite/sprite`,
-    glyphs: `${publicUrl}/font/{fontstack}/{range}.pbf`,
+    sprite: `${SITE_URL}/sprite/sprite`,
+    glyphs: `${SITE_URL}/font/{fontstack}/{range}.pbf`,
     sources: {
       vworldBase: {
         type: "raster",

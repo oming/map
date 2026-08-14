@@ -29,9 +29,9 @@ async function main(): Promise<void> {
   const apiKey = resolveVworldApiKey();
 
   if (!apiKey) {
-    console.error("⚠ VWORLD_API_KEY 환경 변수가 설정되지 않았습니다.");
+    console.error("⚠ NEXT_PUBLIC_VWORLD_API_KEY 환경 변수가 설정되지 않았습니다.");
     console.error(
-      "  export VWORLD_API_KEY=<your-key> 또는 .env.local 파일을 확인하세요.",
+      "  export NEXT_PUBLIC_VWORLD_API_KEY=<your-key> 또는 .env.local 파일을 확인하세요.",
     );
     process.exit(1);
   }

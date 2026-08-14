@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { VWORLD_API_KEY, VWORLD_VECTOR_MIN_ZOOM } from "@/lib/vworld/config";
+import {
+  isVWorldVectorTileUrl,
+  VWORLD_API_KEY,
+  VWORLD_VECTOR_MIN_ZOOM,
+} from "@/lib/vworld/config";
 
-const SEOUL_CITY_HALL: [number, number] = [126.978, 37.5665];
 // 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
 const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
 const INITIAL_VIEW_ZOOM = 7;
@@ -23,7 +26,6 @@ import {
   addProtocol,
   setWorkerUrl,
   ErrorEvent,
-  Marker,
 } from "maplibre-gl";
 import { Search } from "./search";
 import { ReactControl } from "./react-control";
@@ -47,22 +49,11 @@ export default function VWorldMap({
 
     addProtocol(protocol, async (params, abortController) => {
       const url = params.url.replace(protocol + "://", "");
-      // console.log("addProtocol url", url);
 
       return fetch(url)
         .then((response) => response.arrayBuffer())
         .then((data) => new VectorTile(new PbfReader(data)))
         .then((tile) => {
-          const rows = Object.entries(tile.layers).flatMap(
-            ([layerName, layer]) =>
-              Array.from({ length: layer.length }, (_, i) => ({
-                layerName,
-                featureIndex: i,
-                ...layer.feature(i).properties,
-              })),
-          );
-          // console.log("before tile", tile);
-          // console.log(JSON.stringify(rows, null, 2));
           const newTile: VectorTile = {
             layers: Object.entries(tile.layers).reduce(
               (acc, [layerId, layer]) => ({
@@ -83,23 +74,6 @@ export default function VWorldMap({
         })
         .then((tile) => fromVectorTileJs(tile).buffer)
         .then((data) => ({ data }));
-      // .then((tile) => fromVectorTileJs(tile))
-      // .then((data) => {
-      //   const tile = new VectorTile(new PbfReader(data));
-
-      //   // const rows = Object.entries(tile.layers).flatMap(
-      //   //   ([layerName, layer]) =>
-      //   //     Array.from({ length: layer.length }, (_, i) => ({
-      //   //       layerName,
-      //   //       featureIndex: i,
-      //   //       ...layer.feature(i).properties,
-      //   //     })),
-      //   // );
-
-      //   // console.log("after tile", tile);
-      //   // console.log(JSON.stringify(rows, null, 2));
-      //   return { data: fromVectorTileJs(tile).buffer };
-      // })
     });
 
     const map = new Map({
@@ -109,26 +83,10 @@ export default function VWorldMap({
       center: INITIAL_VIEW_CENTER,
       zoom: INITIAL_VIEW_ZOOM,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
-      // maxZoom: VWORLD_VECTOR_MAX_ZOOM,
-      // transformRequest: (url, resourceType) => {
-      //   // console.log("transformRequest", { url, resourceType });
-      //   if (
-      //     url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
-      //     resourceType === "Tile"
-      //   ) {
-      //     return { url: protocol + "://" + url };
-      //   }
-      //   return undefined;
-      // },
     });
 
     map.setTransformRequest((url, resourceType) => {
-      // console.log("setTransformRequest", { url, resourceType });
-      if (
-        url.startsWith("https://api.vworld.kr/req/wmts/vector/getTile/") &&
-        resourceType === "Tile"
-      ) {
-        // console.log("gogogo");
+      if (isVWorldVectorTileUrl(url) && resourceType === "Tile") {
         return { url: protocol + "://" + url };
       }
       return undefined;
@@ -183,8 +141,6 @@ export default function VWorldMap({
     map.setMissingStyleImageResolver((id) => {
       console.warn("[스프라이트에 없는 cl_id]", id);
     });
-
-    const marker = new Marker().setLngLat(SEOUL_CITY_HALL).addTo(map);
 
     setMapInstance(map);
     return () => {

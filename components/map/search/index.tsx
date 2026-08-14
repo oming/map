@@ -4,21 +4,23 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { LocateFixed } from "lucide-react";
+import { LocateFixed, Search as SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGeoSearch } from "@/hooks/use-geo-search";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useSearchMapLayers } from "@/hooks/use-search-map-layers";
 import { viewportBBoxWithMinRadius } from "@/lib/geo-utils";
+import { cn } from "@/lib/utils";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { SearchInput } from "./search-input";
@@ -27,7 +29,9 @@ import { SearchPager } from "./search-pager";
 import { SearchError } from "./search-error";
 
 export function Search({ map = null }: { map?: MaplibreMap | null }) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [draftQuery, setDraftQuery] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,13 +101,19 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     placesItems: places.items,
     addressesItems: addresses.items,
     searchQuery,
-    totalCount,
     onBBoxChange: (bbox) => {
       setSearchBbox(bbox);
       setBiasApplied(false);
     },
-    onToggleOpen: setOpen,
   });
+
+  const handleItemSelect = (
+    item: Parameters<typeof handleSelect>[0],
+    label: string,
+  ) => {
+    handleSelect(item, label);
+    if (isMobile) setMobileOpen(false);
+  };
 
   const hasResults = places.items.length > 0 || addresses.items.length > 0;
   const activeData = activeTab === "place" ? places : addresses;
@@ -112,9 +122,7 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     e.preventDefault();
     const q = draftQuery.trim();
     setSearchQuery(q);
-    setSearchBbox(
-      map ? viewportBBoxWithMinRadius(map.getBounds()) : undefined,
-    );
+    setSearchBbox(map ? viewportBBoxWithMinRadius(map.getBounds()) : undefined);
     setBiasApplied(!!map);
     setIsNationwideFallback(false);
     setOpen(true);
@@ -134,111 +142,164 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
   // network error 포함: activeData.error는 API 응답 에러 + SWR 네트워크 에러 모두 포함
   const error: Error | undefined = activeData.error ?? undefined;
 
-  return (
+  const resultsBody = searchQuery && (
     <>
-      <SearchInput
-        draftQuery={draftQuery}
-        onDraftChange={setDraftQuery}
-        onSubmit={handleSubmit}
-        onClear={handleClear}
+      <SearchError
+        activeTabLoading={activeData.isLoading}
+        hasResults={hasResults}
+        error={error}
       />
 
-      {searchQuery && (
-        <div className="mt-2 overflow-hidden rounded-lg bg-background text-foreground shadow-lg">
-          <SearchError
-            activeTabLoading={activeData.isLoading}
-            hasResults={hasResults}
-            error={error}
-          />
+      {hasResults && (
+        <>
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+            <div className="min-w-0 truncate text-sm">
+              <span className="font-medium">{searchQuery}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                검색 결과: 총 {totalCount}건
+              </span>
+            </div>
+            {!isMobile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setOpen((v) => !v)}
+              >
+                {open ? "접기" : "펼치기"}
+              </Button>
+            )}
+          </div>
 
-          {hasResults && (
-            <>
-              <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
-                <div className="min-w-0 truncate text-sm">
-                  <span className="font-medium">{searchQuery}</span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    검색 결과: 총 {totalCount}건
-                  </span>
+          {isNationwideFallback && (
+            <div className="border-b px-3 py-1.5 text-xs text-muted-foreground">
+              현재 위치 근처에 결과가 없어 전국 검색 결과를 표시합니다.
+            </div>
+          )}
+
+          <Collapsible open={isMobile ? true : open}>
+            <CollapsibleContent>
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => setActiveTab(v as "place" | "address")}
+                className="flex max-h-[60vh] flex-col p-2"
+              >
+                <TabsList variant="default" className="w-full">
+                  <TabsTrigger value="place" className="flex-1">
+                    장소 ({places.totalCount}건)
+                  </TabsTrigger>
+                  <TabsTrigger value="address" className="flex-1">
+                    주소 ({addresses.totalCount}건)
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                  <TabsContent value="place" className="m-0">
+                    <ResultList
+                      items={places.items}
+                      emptyLabel="장소 검색 결과가 없습니다."
+                      color="blue"
+                      selectedItemId={selectedItemId ?? null}
+                      onItemSelect={handleItemSelect}
+                    />
+                  </TabsContent>
+                  <TabsContent value="address" className="m-0">
+                    <ResultList
+                      items={addresses.items}
+                      emptyLabel="주소 검색 결과가 없습니다."
+                      color="orange"
+                      selectedItemId={selectedItemId ?? null}
+                      onItemSelect={handleItemSelect}
+                    />
+                  </TabsContent>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setOpen((v) => !v)}
-                >
-                  {open ? "접기" : "펼치기"}
-                </Button>
-              </div>
 
-              {isNationwideFallback && (
-                <div className="border-b px-3 py-1.5 text-xs text-muted-foreground">
-                  현재 위치 근처에 결과가 없어 전국 검색 결과를 표시합니다.
+                {activeTab === "place" && (
+                  <SearchPager
+                    page={placePage}
+                    totalPages={places.totalPages}
+                    onPageChange={setPlacePage}
+                    isLoading={places.isLoading}
+                  />
+                )}
+                {activeTab === "address" && (
+                  <SearchPager
+                    page={addressPage}
+                    totalPages={addresses.totalPages}
+                    onPageChange={setAddressPage}
+                    isLoading={addresses.isLoading}
+                  />
+                )}
+              </Tabs>
+            </CollapsibleContent>
+          </Collapsible>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {isMobile ? (
+        <Drawer
+          open={mobileOpen}
+          onOpenChange={setMobileOpen}
+          swipeDirection="up"
+          showSwipeHandle
+        >
+          <DrawerTrigger
+            render={
+              <Button
+                type="button"
+                size={searchQuery ? "default" : "icon"}
+                className={cn(searchQuery && "max-w-[70vw]")}
+                aria-label="검색"
+              />
+            }
+          >
+            <SearchIcon className="size-4 shrink-0" />
+            {searchQuery && <span className="truncate">{searchQuery}</span>}
+          </DrawerTrigger>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>검색</DrawerTitle>
+              <DrawerDescription>검색을 할 수 있습니다.</DrawerDescription>
+            </DrawerHeader>
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <SearchInput
+                className="w-full"
+                draftQuery={draftQuery}
+                onDraftChange={setDraftQuery}
+                onSubmit={handleSubmit}
+                onClear={handleClear}
+                showClearButton={!!searchQuery}
+              />
+              {searchQuery && (
+                <div className="mt-2 overflow-hidden rounded-lg bg-background text-foreground">
+                  {resultsBody}
                 </div>
               )}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <>
+          <SearchInput
+            draftQuery={draftQuery}
+            onDraftChange={setDraftQuery}
+            onSubmit={handleSubmit}
+            onClear={handleClear}
+            showClearButton={!!searchQuery}
+          />
 
-              <Collapsible open={open}>
-                <CollapsibleContent>
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={(v) =>
-                      setActiveTab(v as "place" | "address")
-                    }
-                    className="flex max-h-[60vh] flex-col p-2"
-                  >
-                    <TabsList variant="default" className="w-full">
-                      <TabsTrigger value="place" className="flex-1">
-                        장소 ({places.totalCount}건)
-                      </TabsTrigger>
-                      <TabsTrigger value="address" className="flex-1">
-                        주소 ({addresses.totalCount}건)
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <div className="min-h-0 flex-1 overflow-y-auto p-2">
-                      <TabsContent value="place" className="m-0">
-                        <ResultList
-                          items={places.items}
-                          emptyLabel="장소 검색 결과가 없습니다."
-                          color="blue"
-                          selectedItemId={selectedItemId ?? null}
-                          onItemSelect={handleSelect}
-                        />
-                      </TabsContent>
-                      <TabsContent value="address" className="m-0">
-                        <ResultList
-                          items={addresses.items}
-                          emptyLabel="주소 검색 결과가 없습니다."
-                          color="orange"
-                          selectedItemId={selectedItemId ?? null}
-                          onItemSelect={handleSelect}
-                        />
-                      </TabsContent>
-                    </div>
-
-                    {activeTab === "place" && (
-                      <SearchPager
-                        page={placePage}
-                        totalPages={places.totalPages}
-                        onPageChange={setPlacePage}
-                        isLoading={places.isLoading}
-                      />
-                    )}
-                    {activeTab === "address" && (
-                      <SearchPager
-                        page={addressPage}
-                        totalPages={addresses.totalPages}
-                        onPageChange={setAddressPage}
-                        isLoading={addresses.isLoading}
-                      />
-                    )}
-                  </Tabs>
-                </CollapsibleContent>
-              </Collapsible>
-            </>
+          {searchQuery && (
+            <div className="mt-2 overflow-hidden rounded-lg bg-background text-foreground">
+              {resultsBody}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {map &&

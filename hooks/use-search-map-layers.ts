@@ -1,6 +1,5 @@
 // hooks/use-search-map-layers.ts
 import { useEffect, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
@@ -261,9 +260,7 @@ export interface UseSearchMapLayersOptions {
   placesItems: GeoSearchItem[];
   addressesItems: GeoSearchItem[];
   searchQuery: string;
-  totalCount: number;
   onBBoxChange: (bbox: string | undefined) => void;
-  onToggleOpen: Dispatch<SetStateAction<boolean>>;
 }
 
 export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
@@ -273,9 +270,7 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     placesItems,
     addressesItems,
     searchQuery,
-    totalCount,
     onBBoxChange,
-    onToggleOpen,
   } = options;
 
   const isProgrammaticMoveRef = useRef(false);
@@ -373,22 +368,32 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     };
   }, [map]);
 
-  // moveend → "이 위치에서 검색" 버튼 표시
+  // moveend/zoomend → "이 위치에서 검색" 버튼 표시
+  // (결과가 0건이어도 새 영역에서 다시 검색할 수 있어야 하므로 totalCount는 조건에 넣지 않는다.
+  // zoomend는 이동 없이 줌만 바뀐 경우를 놓치지 않기 위한 보강 리스너 — ref는 moveend에서만
+  // 리셋해 flyTo(줌+이동 동반) 도중 프로그램적 이동을 정상적으로 무시한다.)
   useEffect(() => {
     if (!map) return;
+    const onZoomEnd = () => {
+      if (isProgrammaticMoveRef.current) return;
+      if (!searchQuery) return;
+      setShowSearchThisArea(true);
+    };
     const onMoveEnd = () => {
       if (isProgrammaticMoveRef.current) {
         isProgrammaticMoveRef.current = false;
         return;
       }
-      if (!searchQuery || totalCount === 0) return;
+      if (!searchQuery) return;
       setShowSearchThisArea(true);
     };
+    map.on("zoomend", onZoomEnd);
     map.on("moveend", onMoveEnd);
     return () => {
+      map.off("zoomend", onZoomEnd);
       map.off("moveend", onMoveEnd);
     };
-  }, [map, searchQuery, totalCount]);
+  }, [map, searchQuery]);
 
   // 이 위치에서 검색 실행
   const handleSearchThisArea = () => {
@@ -396,18 +401,6 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     onBBoxChange(viewportBBoxWithMinRadius(map.getBounds()));
     setShowSearchThisArea(false);
   };
-
-  // Cmd+K 토글
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        onToggleOpen((v) => !v);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [onToggleOpen]);
 
   return {
     selectedItemId,

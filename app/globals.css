@@ -134,6 +134,14 @@
 }
 
 @layer components {
+  /* ReactControl(components/map/react-control.tsx)로 마운트된 컨트롤은
+     다른 maplibre 기본 컨트롤(전부 흰 배경)과 나란히 보이므로, shadcn 버튼의
+     primary 색상(검은 배경)이 아니라 maplibre 기본 배경/전경색을 쓰도록 재정의한다. */
+  .maplibregl-ctrl {
+    --primary: var(--background);
+    --primary-foreground: var(--foreground);
+  }
+
   .maplibregl-ctrl-top-left {
     padding-top: env(safe-area-inset-top);
     padding-left: env(safe-area-inset-left);

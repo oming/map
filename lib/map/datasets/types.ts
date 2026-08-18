@@ -1,4 +1,5 @@
 import type { DetailFieldsSchema } from "@/components/map/data/detail-fields";
+import type { PinIcon } from "@/lib/map/pin-image";
 
 export interface ClusterSpec {
   radius?: number;
@@ -23,6 +24,8 @@ export interface DataLayerDef {
   id: string;
   label: string;
   color: string;
+  /** 마커 안에 그릴 lucide 아이콘. 생략하면 단색 핀만 그린다. */
+  icon?: PinIcon;
   minzoom?: number;
   source: SourceSpec;
   detail: DetailFieldsSchema;

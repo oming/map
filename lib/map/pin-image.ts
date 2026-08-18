@@ -9,15 +9,24 @@ const DEFAULT_PIN_SRC_WIDTH = 384;
 const DEFAULT_PIN_SRC_HEIGHT = 512;
 const DEFAULT_PIN_GLYPH_CENTER = { x: 192, y: 192 };
 
+export interface PinIcon {
+  /** lucide 아이콘의 path `d` 배열 (stroke 기반 — lucide는 fill이 아니라 stroke로 그린다). */
+  paths: string[];
+  /** 원본 SVG viewBox 정사각형 크기. lucide 기본값은 24. */
+  viewBox?: number;
+}
+
 export interface PinImageOptions {
   /** 핀 외곽선 SVG path (viewBox 기준 좌표). 기본값은 검색 결과와 동일한 물방울 핀. */
   path?: string;
   /** path의 원본 viewBox 크기 — path를 바꿀 때만 함께 바꾼다. */
   srcWidth?: number;
   srcHeight?: number;
-  /** 라벨(글리프) 텍스트를 그릴 위치 — path의 원본 좌표계 기준. */
+  /** 라벨/아이콘을 그릴 위치 — path의 원본 좌표계 기준. */
   glyphCenter?: { x: number; y: number };
   color: string;
+  /** icon이 있으면 icon이 우선하고 label은 무시된다. */
+  icon?: PinIcon;
   /** 생략하면 라벨 텍스트를 그리지 않는다(단색 핀). */
   label?: string;
   /** CSS 픽셀 기준 너비. 높이는 srcHeight/srcWidth 비율로 자동 계산된다. */
@@ -33,6 +42,7 @@ export function createPinImage(options: PinImageOptions) {
     srcHeight = DEFAULT_PIN_SRC_HEIGHT,
     glyphCenter = DEFAULT_PIN_GLYPH_CENTER,
     color,
+    icon,
     label,
     cssWidth,
     pixelRatio = 3,
@@ -57,7 +67,27 @@ export function createPinImage(options: PinImageOptions) {
   ctx.stroke(shape);
   ctx.restore();
 
-  if (label) {
+  if (icon) {
+    const iconViewBox = icon.viewBox ?? 24;
+    // 헤드 크기에 비례한 아이콘 렌더 크기. lucide는 stroke-width 2가 24 viewBox
+    // 기준으로 설계돼 있으므로, 축소된 크기에서도 <svg>를 그대로 줄인 것과 같은
+    // 결과가 나오도록 ctx.lineWidth는 스케일 전(원본 2) 그대로 둔다.
+    const iconSize = cssWidth * 0.5;
+    const iconScale = iconSize / iconViewBox;
+
+    ctx.save();
+    ctx.translate(glyphCenter.x * scale, glyphCenter.y * scale);
+    ctx.scale(iconScale, iconScale);
+    ctx.translate(-iconViewBox / 2, -iconViewBox / 2);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (const d of icon.paths) {
+      ctx.stroke(new Path2D(d));
+    }
+    ctx.restore();
+  } else if (label) {
     ctx.fillStyle = "#ffffff";
     ctx.font = `800 ${Math.round(cssWidth * 0.55)}px sans-serif`;
     ctx.textAlign = "center";

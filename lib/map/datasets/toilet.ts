@@ -1,9 +1,17 @@
 import type { DataLayerDef } from "./types";
 
+// lucide-react "toilet" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
+// dist/esm/icons/toilet.mjs. wifi.ts와 같은 이유로 문자열만 갖고 있는다.
+const TOILET_ICON_PATHS = [
+  "M7 12h13a1 1 0 0 1 1 1 5 5 0 0 1-5 5h-.598a.5.5 0 0 0-.424.765l1.544 2.47a.5.5 0 0 1-.424.765H5.402a.5.5 0 0 1-.424-.765L7 18",
+  "M8 18a5 5 0 0 1-5-5V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8",
+];
+
 export const toiletSuwonLayer: DataLayerDef = {
   id: "toilet-suwon",
   label: "공중화장실 (수원)",
   color: "#f97316",
+  icon: { paths: TOILET_ICON_PATHS },
   source: {
     kind: "geojson",
     url: "/data/toilet-suwon.geojson",

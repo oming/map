@@ -71,7 +71,11 @@ export function useDataLayers(
         });
       }
 
-      registerPinImage(map, ids.image, { color: def.color, cssWidth: 22 });
+      registerPinImage(map, ids.image, {
+        color: def.color,
+        cssWidth: 22,
+        icon: def.icon,
+      });
 
       if (cluster && !map.getLayer(ids.cluster)) {
         map.addLayer(

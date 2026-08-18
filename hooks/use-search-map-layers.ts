@@ -8,7 +8,7 @@ import {
   registerClickRoutes,
   type ClickRoute,
 } from "@/lib/map/click-router";
-import { registerPinImage } from "@/lib/map/pin-image";
+import { registerPinImage, STANDARD_PIN_WIDTH } from "@/lib/map/pin-image";
 
 const RESULTS_SOURCE_ID = "search-results";
 const RESULTS_ICON_LAYER_ID = "search-results-icon";
@@ -24,8 +24,10 @@ const PIN_COLORS: Record<string, string> = {
   orange: "#f97316",
   red: "#ef4444",
 };
-const RESULTS_PIN_WIDTH = 24;
-const SELECTED_PIN_WIDTH = 36;
+// 검색/데이터 레이어 마커 크기를 전부 통일한다 — 서로 다른 소스(별도 React 루트 포함)에서
+// 만들어지는 핀이라도 시각적으로 같은 크기여야 한다는 요구에 따라 STANDARD_PIN_WIDTH를 공유한다.
+const RESULTS_PIN_WIDTH = STANDARD_PIN_WIDTH;
+const SELECTED_PIN_WIDTH = STANDARD_PIN_WIDTH;
 
 const PIN_LABELS = Array.from({ length: 30 }, (_, i) => indexToLabel(i));
 

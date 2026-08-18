@@ -9,6 +9,9 @@ const DEFAULT_PIN_SRC_WIDTH = 384;
 const DEFAULT_PIN_SRC_HEIGHT = 512;
 const DEFAULT_PIN_GLYPH_CENTER = { x: 192, y: 192 };
 
+/** 검색/데이터 레이어 마커가 공유하는 표준 CSS 너비. 사이즈를 바꾸려면 여기 하나만 고친다. */
+export const STANDARD_PIN_WIDTH = 24;
+
 export interface PinIcon {
   /** lucide 아이콘의 path `d` 배열 (stroke 기반 — lucide는 fill이 아니라 stroke로 그린다). */
   paths: string[];
@@ -69,10 +72,10 @@ export function createPinImage(options: PinImageOptions) {
 
   if (icon) {
     const iconViewBox = icon.viewBox ?? 24;
-    // 헤드 크기에 비례한 아이콘 렌더 크기. lucide는 stroke-width 2가 24 viewBox
-    // 기준으로 설계돼 있으므로, 축소된 크기에서도 <svg>를 그대로 줄인 것과 같은
-    // 결과가 나오도록 ctx.lineWidth는 스케일 전(원본 2) 그대로 둔다.
-    const iconSize = cssWidth * 0.5;
+    // 헤드 크기에 비례한 아이콘 렌더 크기. lineWidth는 lucide 기본값(24 viewBox
+    // 기준 2)보다 조금 굵게(2.75) 줘서 24px 마커 크기에서도 선이 또렷이 보이게 한다
+    // — <svg>를 그대로 축소하면 이 크기에서는 너무 가늘어 보인다.
+    const iconSize = cssWidth * 0.58;
     const iconScale = iconSize / iconViewBox;
 
     ctx.save();
@@ -80,7 +83,7 @@ export function createPinImage(options: PinImageOptions) {
     ctx.scale(iconScale, iconScale);
     ctx.translate(-iconViewBox / 2, -iconViewBox / 2);
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.75;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     for (const d of icon.paths) {

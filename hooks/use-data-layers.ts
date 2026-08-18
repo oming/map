@@ -5,7 +5,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import type { DataLayerDef } from "@/lib/map/datasets/types";
 import { registerClickRoutes, type ClickRoute } from "@/lib/map/click-router";
-import { registerPinImage } from "@/lib/map/pin-image";
+import { registerPinImage, STANDARD_PIN_WIDTH } from "@/lib/map/pin-image";
 import { teardownLayerGroup } from "@/lib/map/layer-lifecycle";
 import { getDataLayer } from "@/lib/map/datasets";
 
@@ -73,7 +73,7 @@ export function useDataLayers(
 
       registerPinImage(map, ids.image, {
         color: def.color,
-        cssWidth: 22,
+        cssWidth: STANDARD_PIN_WIDTH,
         icon: def.icon,
       });
 

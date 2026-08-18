@@ -53,6 +53,14 @@ export async function GET(request: NextRequest) {
     layers: [
       { id: "vworld-base", type: "raster", source: "vworldBase" },
       ...poiLayers,
+      // 데이터 레이어 / 검색 레이어를 결정적인 z-order로 addLayer(spec, beforeId)하기 위한
+      // 앵커. 소스 없는 투명 background라 렌더 비용 0. 순서 재조정(moveLayer) 불필요.
+      { id: "slot-data", type: "background", layout: { visibility: "none" } },
+      {
+        id: "slot-overlay",
+        type: "background",
+        layout: { visibility: "none" },
+      },
     ],
   };
 

@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   isVWorldVectorTileUrl,
   VWORLD_API_KEY,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
+import { migrateLegacyHash } from "@/lib/map/hash-state";
+import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
+import poiLayersRaw from "@/data/poi-layers.json";
+
+const POI_DEBUG_LAYER_IDS = (poiLayersRaw as { id: string }[]).map(
+  (l) => l.id,
+);
 
 // 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
 const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
@@ -41,9 +49,13 @@ export default function VWorldMap({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<Map | null>(null);
+  const [styleReady, setStyleReady] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapInstance) return;
+
+    // new Map() 이전에 실행 — 구버전 '#zoom/lat/lng' 링크를 '#map=zoom/lat/lng'로 옮긴다.
+    migrateLegacyHash();
 
     addProtocol(protocol, async (params, abortController) => {
       const url = params.url.replace(protocol + "://", "");
@@ -77,7 +89,7 @@ export default function VWorldMap({
     const map = new Map({
       container: containerRef.current,
       style: `/vworld.json?key=${VWORLD_API_KEY}`,
-      hash: true,
+      hash: "map",
       center: INITIAL_VIEW_CENTER,
       zoom: INITIAL_VIEW_ZOOM,
       minZoom: VWORLD_VECTOR_MIN_ZOOM,
@@ -113,21 +125,27 @@ export default function VWorldMap({
     const searchControl = new ReactControl(<Search />);
     map.addControl(searchControl, "top-left");
 
-    map.on("click", (e) => {
-      const features = map.queryRenderedFeatures(e.point);
+    const detachClickRouter = attachClickRouter(map);
 
-      const poi = features.find((feature) =>
-        feature.layer.id.startsWith("poi-normal-"),
+    // 기존 전역 디버그 팝업 — 단일 클릭 라우터의 최하위 우선순위 분기로 이관.
+    // 개발 환경에서만 등록되고, 앞으로 추가되는 데이터 레이어/검색 라우트가 항상 우선한다.
+    let unregisterDebugRoute: (() => void) | undefined;
+    if (process.env.NODE_ENV !== "production") {
+      unregisterDebugRoute = registerClickRoutes(
+        POI_DEBUG_LAYER_IDS,
+        1000,
+        (feature, e) => {
+          new Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`<pre>${JSON.stringify(feature.properties, null, 2)}</pre>`)
+            .setMaxWidth("500px")
+            .addTo(map);
+        },
       );
+    }
 
-      if (!poi) return;
-
-      new Popup()
-        .setLngLat(e.lngLat)
-        .setHTML(`<pre>${JSON.stringify(poi.properties, null, 2)}</pre>`)
-        .setMaxWidth("500px")
-        .addTo(map);
-    });
+    map.on("style.load", () => setStyleReady(true));
+    map.on("remove", () => setStyleReady(false));
 
     map.on("error", (e: ErrorEvent) =>
       console.error("[MapLibre error]", e.error),
@@ -139,16 +157,23 @@ export default function VWorldMap({
 
     setMapInstance(map);
     return () => {
+      detachClickRouter();
+      unregisterDebugRoute?.();
       map.remove();
       setMapInstance(null);
     };
   }, []);
 
   return (
-    <MapContext.Provider value={{ map: mapInstance }}>
-      <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
-        {children}
-      </div>
+    <MapContext.Provider value={{ map: mapInstance, styleReady }}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      {mapInstance &&
+        createPortal(
+          <div className="pointer-events-none absolute inset-0 z-[3]">
+            {children}
+          </div>,
+          mapInstance.getContainer(),
+        )}
     </MapContext.Provider>
   );
 }

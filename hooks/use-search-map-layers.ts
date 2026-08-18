@@ -1,9 +1,14 @@
 // hooks/use-search-map-layers.ts
 import { useEffect, useRef, useState } from "react";
-import type { Map as MaplibreMap, MapGeoJSONFeature } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
 import { viewportBBoxWithMinRadius, indexToLabel } from "@/lib/geo-utils";
+import {
+  registerClickRoutes,
+  type ClickRoute,
+} from "@/lib/map/click-router";
+import { registerPinImage } from "@/lib/map/pin-image";
 
 const RESULTS_SOURCE_ID = "search-results";
 const RESULTS_ICON_LAYER_ID = "search-results-icon";
@@ -13,12 +18,6 @@ const RESULTS_CLUSTER_COUNT_LAYER_ID = "search-results-cluster-count";
 const SELECTED_SOURCE_ID = "search-selected";
 const SELECTED_ICON_LAYER_ID = "search-selected-icon";
 const SELECTED_LABEL_LAYER_ID = "search-selected-label";
-
-const PIN_PATH =
-  "M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.774-39.464 0z";
-const PIN_SRC_W = 384;
-const PIN_SRC_H = 512;
-const PIN_HEAD_CENTER = { x: 192, y: 192 };
 
 const PIN_COLORS: Record<string, string> = {
   blue: "#3b82f6",
@@ -38,42 +37,6 @@ function pinImageId(colorKey: string, label: string, cssWidth: number) {
   return `pin-${colorKey}-${label}-${cssWidth}`;
 }
 
-function createPinImage(color: string, label: string, cssWidth: number) {
-  const pixelRatio = 3;
-  const cssHeight = cssWidth * (PIN_SRC_H / PIN_SRC_W);
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(cssWidth * pixelRatio);
-  canvas.height = Math.round(cssHeight * pixelRatio);
-  const ctx = canvas.getContext("2d")!;
-  ctx.scale(pixelRatio, pixelRatio);
-
-  const scale = cssWidth / PIN_SRC_W;
-  const path = new Path2D(PIN_PATH);
-
-  ctx.save();
-  ctx.scale(scale, scale);
-  ctx.fillStyle = color;
-  ctx.fill(path);
-  ctx.lineWidth = 2 / scale;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke(path);
-  ctx.restore();
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${Math.round(cssWidth * 0.55)}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, PIN_HEAD_CENTER.x * scale, PIN_HEAD_CENTER.y * scale);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  return {
-    width: canvas.width,
-    height: canvas.height,
-    data: imageData.data,
-    pixelRatio,
-  };
-}
-
 function registerPinImages(
   map: MaplibreMap,
   colorKey: string,
@@ -81,10 +44,11 @@ function registerPinImages(
 ) {
   const color = PIN_COLORS[colorKey];
   for (const label of PIN_LABELS) {
-    const id = pinImageId(colorKey, label, cssWidth);
-    if (map.hasImage(id)) continue;
-    const img = createPinImage(color, label, cssWidth);
-    map.addImage(id, img, { pixelRatio: img.pixelRatio });
+    registerPinImage(map, pinImageId(colorKey, label, cssWidth), {
+      color,
+      label,
+      cssWidth,
+    });
   }
 }
 
@@ -342,12 +306,19 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     setShowSearchThisArea(false);
   }, [searchQuery]);
 
-  // 레이어 설정: 스타일 로드 시점/이후 보장
+  // 레이어 설정: 스타일 로드 시점/이후 보장.
+  // 'style.load'는 최초 로드뿐 아니라 향후 setStyle(베이스맵 전환)에도 재발화하므로
+  // once('load') 대신 on을 쓴다 — isStyleLoaded()+once('load') 조합은 이 effect가
+  // load 발화 '이후'에 재실행되면(예: StrictMode 이중 마운트 타이밍) once('load')가
+  // 다시 오지 않을 이미 지나간 이벤트를 기다리며 레이어가 조용히 생성되지 않는 버그가 있다.
   useEffect(() => {
     if (!map) return;
     const setup = () => ensureLayers(map);
     if (map.isStyleLoaded()) setup();
-    else map.once("load", setup);
+    map.on("style.load", setup);
+    return () => {
+      map.off("style.load", setup);
+    };
   }, [map]);
 
   // 결과 렌더링 (지도 이동/줌은 하지 않음 — 검색 자체가 이미 현재 뷰 기준이므로)
@@ -381,7 +352,9 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     source?.setData({ type: "FeatureCollection", features: [] });
   };
 
-  // 팝업 클릭 핸들러
+  // 팝업 클릭 핸들러 — 클릭은 맵 레벨 단일 라우터(lib/map/click-router)로 등록한다.
+  // 검색 결과는 우선순위 최상(0)이라 향후 추가될 데이터 레이어보다 항상 먼저 반응한다.
+  // 커서 변경(mouseenter/mouseleave)은 우선순위 의미가 없으므로 위임 핸들러를 그대로 쓴다.
   useEffect(() => {
     if (!map) return;
     const popup = new maplibregl.Popup({
@@ -390,11 +363,8 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
       offset: 18,
     });
 
-    const onClick = (
-      e: maplibregl.MapMouseEvent & { features?: MapGeoJSONFeature[] },
-    ) => {
-      const feature = e.features?.[0];
-      if (!feature || feature.geometry.type !== "Point") return;
+    const onPointClick: ClickRoute["onClick"] = (feature) => {
+      if (feature.geometry.type !== "Point") return;
       const [lon, lat] = feature.geometry.coordinates as [number, number];
       const { title, subtitle, kind } = feature.properties as {
         title: string;
@@ -410,11 +380,8 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
     const onEnter = () => (map.getCanvas().style.cursor = "pointer");
     const onLeave = () => (map.getCanvas().style.cursor = "");
 
-    const onClusterClick = (
-      e: maplibregl.MapMouseEvent & { features?: MapGeoJSONFeature[] },
-    ) => {
-      const feature = e.features?.[0];
-      if (!feature || feature.geometry.type !== "Point") return;
+    const onClusterClick: ClickRoute["onClick"] = (feature) => {
+      if (feature.geometry.type !== "Point") return;
       const center = feature.geometry.coordinates as [number, number];
       const clusterId = feature.properties?.cluster_id;
       const source = map.getSource(RESULTS_SOURCE_ID) as
@@ -431,22 +398,31 @@ export function useSearchMapLayers(options: UseSearchMapLayersOptions) {
         .catch(() => {});
     };
 
+    const unregisterPointClick = registerClickRoutes(
+      [RESULTS_ICON_LAYER_ID, SELECTED_ICON_LAYER_ID],
+      0,
+      onPointClick,
+    );
+    const unregisterClusterClick = registerClickRoutes(
+      [RESULTS_CLUSTER_LAYER_ID],
+      0,
+      onClusterClick,
+    );
+
     for (const id of [RESULTS_ICON_LAYER_ID, SELECTED_ICON_LAYER_ID]) {
-      map.on("click", id, onClick);
       map.on("mouseenter", id, onEnter);
       map.on("mouseleave", id, onLeave);
     }
-    map.on("click", RESULTS_CLUSTER_LAYER_ID, onClusterClick);
     map.on("mouseenter", RESULTS_CLUSTER_LAYER_ID, onEnter);
     map.on("mouseleave", RESULTS_CLUSTER_LAYER_ID, onLeave);
 
     return () => {
+      unregisterPointClick();
+      unregisterClusterClick();
       for (const id of [RESULTS_ICON_LAYER_ID, SELECTED_ICON_LAYER_ID]) {
-        map.off("click", id, onClick);
         map.off("mouseenter", id, onEnter);
         map.off("mouseleave", id, onLeave);
       }
-      map.off("click", RESULTS_CLUSTER_LAYER_ID, onClusterClick);
       map.off("mouseenter", RESULTS_CLUSTER_LAYER_ID, onEnter);
       map.off("mouseleave", RESULTS_CLUSTER_LAYER_ID, onLeave);
       popup.remove();

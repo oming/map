@@ -11,6 +11,7 @@
     "build:style-builder": "tsx tools/style-builder/build.ts",
     "build:sprite-builder": "tsx tools/sprite-builder/build.ts",
     "build:glyph-builder": "echo 'glyph-builder is not implemented yet. See tools/glyph-builder/README.md'",
+    "build:data-builder": "tsx tools/data-builder/build.ts",
     "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder"
   },
   "dependencies": {
@@ -44,8 +45,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "csv-parse": "^7.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "iconv-lite": "^0.7.3",
     "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.7",

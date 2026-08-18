@@ -41,13 +41,18 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  container,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  /** FullscreenControl은 맵 컨테이너 div만 전체화면으로 만든다. 전체화면 중에도 Sheet가
+   *  보이려면 map.getContainer()를 넘겨야 한다 — 생략 시 document.body에 포털되어
+   *  전체화면 상태에서 가려진다. */
+  container?: SheetPrimitive.Portal.Props["container"]
 }) {
   return (
-    <SheetPortal>
+    <SheetPortal container={container}>
       <SheetOverlay />
       <SheetPrimitive.Popup
         data-slot="sheet-content"

@@ -13,6 +13,10 @@ const MapNoSSR = dynamic(() => import("@/components/map/v-world-map"), {
   ),
 });
 
-export default function MapNoSSRComponent() {
-  return <MapNoSSR />;
+export default function MapNoSSRComponent({
+  children,
+}: {
+  children?: React.ReactNode;
+}) {
+  return <MapNoSSR>{children}</MapNoSSR>;
 }

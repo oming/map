@@ -1,0 +1,10 @@
+{
+  "builtAt": "2026-08-21T08:30:17.987Z",
+  "totalFetched": 1300,
+  "droppedNoCoord": 228,
+  "droppedOutOfBBox": 0,
+  "droppedPast": 845,
+  "droppedBadDate": 0,
+  "dedupRemoved": 6,
+  "featuresWritten": 221
+}

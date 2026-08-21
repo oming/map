@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Map as MaplibreMap, MapMouseEvent } from "maplibre-gl";
 import * as maplibregl from "maplibre-gl";
 import type { DataLayerDef } from "@/lib/map/datasets/types";
 import { registerClickRoutes, type ClickRoute } from "@/lib/map/click-router";
@@ -44,6 +44,10 @@ export function useDataLayers(
 ) {
   const [selected, setSelected] = useState<SelectedFeature | null>(null);
   const spiderfy = useSpiderfy(map);
+  // use-spiderfy.ts의 바깥 클릭 감지와 같은 관용구 — 포인트/클러스터 클릭이 이
+  // ref에 이벤트를 표시해두면, 같은 tick 뒤에 도는 바깥 클릭 리스너가 "이미 처리된
+  // 클릭"임을 알고 방금 연 팝업을 바로 닫아버리지 않는다.
+  const selectedHandledEventRef = useRef<MapMouseEvent | null>(null);
 
   const activeLayers = useMemo(
     () => activeLayerIds.map(getDataLayer).filter((l) => l != null),
@@ -73,6 +77,9 @@ export function useDataLayers(
           cluster: !!cluster,
           clusterRadius: cluster?.radius ?? 50,
           clusterMaxZoom: cluster?.maxZoom ?? 17,
+          // spiderfy가 펼쳐진 동안 원본 핀을 feature-state로 숨기려면 안정적인
+          // 숫자 id가 필요하다(GeoJSON feature 자체엔 id가 없다).
+          generateId: true,
         });
       }
 
@@ -137,12 +144,23 @@ export function useDataLayers(
               "icon-allow-overlap": true,
               "icon-ignore-placement": true,
             },
+            paint: {
+              // spiderfy로 펼쳐진 동안 원본 핀을 숨긴다 — use-spiderfy.ts의
+              // open()/close()가 feature-state를 설정/해제한다.
+              "icon-opacity": [
+                "case",
+                ["boolean", ["feature-state", "spiderfied"], false],
+                0,
+                1,
+              ],
+            },
           },
           "slot-overlay",
         );
       }
 
       const onPointClick: ClickRoute["onClick"] = (feature, event) => {
+        selectedHandledEventRef.current = event;
         // 같은 픽셀에 여러 feature가 겹쳐 렌더된 경우(icon-allow-overlap:true) —
         // 좌표가 완전히 같은 케이스(건물 단위 좌표, clusterMaxZoom 이상 확대 등)라
         // 정확히 이 지점만 질의하면 전부 잡힌다.
@@ -166,6 +184,10 @@ export function useDataLayers(
               anchor,
               color: def.color,
               icon: def.icon,
+              sourceId: ids.source,
+              originFeatureIds: distinct
+                .map((f) => f.id)
+                .filter((id): id is string | number => id != null),
               items: distinct.map((f) => ({
                 properties: (f.properties ?? {}) as Record<string, unknown>,
                 coordinates: (f.geometry as GeoJSON.Point)
@@ -192,7 +214,8 @@ export function useDataLayers(
               : null,
         });
       };
-      const onClusterClick: ClickRoute["onClick"] = (feature) => {
+      const onClusterClick: ClickRoute["onClick"] = (feature, event) => {
+        selectedHandledEventRef.current = event;
         // 클러스터 클릭은 항상 확대(zoom-in)만 한다 — spiderfy는 클러스터가 아니라
         // "최대 줌에서도 완전히 같은 좌표에 겹친 포인트"(onPointClick)에서만 쓴다.
         if (feature.geometry.type !== "Point") return;
@@ -257,5 +280,29 @@ export function useDataLayers(
     };
   }, [map, styleReady, activeLayers, spiderfy]);
 
-  return { selected, clearSelected: () => setSelected(null) };
+  // 마커/spiderfy leg가 아닌 지도 빈 곳을 클릭하면 팝업을 닫는다. use-spiderfy.ts의
+  // 바깥 클릭 감지와 동일한 관용구(setTimeout(0) + 같은 tick 이벤트 객체 참조 비교) —
+  // click-router.ts가 onPointClick/onClusterClick을 같은 tick에 먼저 실행해
+  // selectedHandledEventRef를 채워두므로, 방금 그 클릭으로 새로 연 팝업은 안 닫힌다.
+  useEffect(() => {
+    if (!map) return;
+    const onAnyClick = (e: MapMouseEvent) => {
+      setTimeout(() => {
+        if (selectedHandledEventRef.current === e) return;
+        setSelected(null);
+      }, 0);
+    };
+    map.on("click", onAnyClick);
+    return () => {
+      map.off("click", onAnyClick);
+    };
+  }, [map]);
+
+  return {
+    selected,
+    clearSelected: () => {
+      setSelected(null);
+      spiderfy.clearActive();
+    },
+  };
 }

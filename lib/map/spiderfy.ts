@@ -3,14 +3,17 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 /** 이 개수를 넘는 클러스터/겹침은 펼치지 않고 기존처럼 확대(zoom)한다. */
 export const MAX_SPIDERFY_LEAVES = 12;
 
-const MIN_RADIUS = 44;
-// 인접 마커 사이 원둘레 거리(px) — SPIDER_DOT_WIDTH(28) + 여유.
-const LEG_SEPARATION = 36;
-// 부채꼴 각도 범위(180°)와 중심 방향(6시=정아래). 팝업은 anchor 위쪽에 뜨고 원본
-// 핀도 bottom-anchor라 몸통이 anchor 위쪽에 있으므로, 아래쪽 반원으로만 펼쳐서
-// 팝업/원본 핀과 겹치지 않게 한다.
-const ARC_SPAN = Math.PI;
-const ARC_CENTER = Math.PI / 2;
+// 팝업 카드(약 230x100px)가 leg 하나를 클릭하면 그 leg 근처에 뜨므로, 반지름이
+// 너무 작으면 인접 leg들을 가려버린다 — 원본 핀 겹침 걱정은 없어졌지만(아래 참고)
+// 팝업 자체와의 충돌은 남아 있어 반지름을 넉넉히 잡는다.
+const MIN_RADIUS = 70;
+// 인접 마커 사이 원둘레 거리(px) — SPIDER_DOT_WIDTH(28)보다 훨씬 넉넉하게 잡아
+// count가 많을 때도 반지름이 충분히 커지게 한다.
+const LEG_SEPARATION = 56;
+// 12시 방향(정위)에서 시작해 시계방향으로 전체 원을 균등하게 채운다. 원본 핀은
+// 펼쳐지는 동안 feature-state로 숨기므로(hooks/use-data-layers.ts) 원본 핀과의
+// 겹침을 피하려고 특정 방향을 비워둘 필요는 없다.
+const START_ANGLE = -Math.PI / 2;
 
 export interface PixelOffset {
   dx: number;
@@ -18,18 +21,17 @@ export interface PixelOffset {
 }
 
 /**
- * count개 항목을 앵커 아래쪽 반원(부채꼴)에 배치할 픽셀 오프셋. 3시 방향에서
- * 시작해 6시(정아래)를 지나 9시 방향까지 — 팝업/원본 핀이 있는 위쪽은 비워둔다.
+ * count개 항목을 앵커를 중심으로 한 원 둘레에 균등 배치할 픽셀 오프셋. 12시
+ * 방향에서 시작해 시계방향으로 돈다.
  */
 export function layoutSpiderfyOffsets(count: number): PixelOffset[] {
   if (count <= 0) return [];
   if (count === 1) return [{ dx: 0, dy: 0 }];
 
-  const angleStep = ARC_SPAN / (count - 1);
-  const radius = Math.max(MIN_RADIUS, (LEG_SEPARATION * (count - 1)) / ARC_SPAN);
-  const startAngle = ARC_CENTER - ARC_SPAN / 2;
+  const angleStep = (2 * Math.PI) / count;
+  const radius = Math.max(MIN_RADIUS, (LEG_SEPARATION * count) / (2 * Math.PI));
   return Array.from({ length: count }, (_, i) => {
-    const angle = startAngle + i * angleStep;
+    const angle = START_ANGLE + i * angleStep;
     return {
       dx: Math.round(radius * Math.cos(angle)),
       dy: Math.round(radius * Math.sin(angle)),

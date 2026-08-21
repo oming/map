@@ -29,21 +29,8 @@ export const toiletGyeonggiLayer: DataLayerDef = {
         label: "기저귀교환대",
         format: (v) => (v ? "있음" : "없음"),
       },
-      // 원본 좌표가 건물 단위 정밀도라 한 지점에 여러 시설이 묶인 경우에만 존재한다
-      // (recipes/toilet-gyeonggi.ts 참고). 개별 시설은 facilities 목록으로 표시.
-      facilityCount: { label: "화장실 수", format: (v) => `${v}개` },
     },
-    list: {
-      key: "facilities",
-      itemLabel: (item) => {
-        const f = item as { name: string; category?: string; openHours?: string };
-        const suffix = [f.category, f.openHours].filter(Boolean).join(" · ");
-        return suffix ? `${f.name} (${suffix})` : f.name;
-      },
-    },
-    // facilities 목록이 있는 병합 피처는 목록을 Sheet에서만 보여준다 — 팝업은
-    // address/facilityCount 정도의 요약만.
-    popupFields: ["address", "facilityCount"],
+    popupFields: ["address", "category", "openHours"],
   },
   attribution: {
     name: "경기도 공중화장실 표준데이터",

@@ -12,6 +12,14 @@ const DEFAULT_PIN_GLYPH_CENTER = { x: 192, y: 192 };
 /** 검색/데이터 레이어 마커가 공유하는 표준 CSS 너비. 사이즈를 바꾸려면 여기 하나만 고친다. */
 export const STANDARD_PIN_WIDTH = 24;
 
+// spiderfy로 펼쳐진 마커 전용 원형 dot path (100x100 viewBox 기준 원).
+// 물방울 핀과 확실히 구분되도록 형태와 크기를 모두 다르게 둔다.
+export const SPIDER_DOT_PATH =
+  "M50 5a45 45 0 1 0 0.0001 0Z";
+export const SPIDER_DOT_SRC_SIZE = 100;
+export const SPIDER_DOT_GLYPH_CENTER = { x: 50, y: 50 };
+export const SPIDER_DOT_WIDTH = 28;
+
 export interface PinIcon {
   /** lucide 아이콘의 path `d` 배열 (stroke 기반 — lucide는 fill이 아니라 stroke로 그린다). */
   paths: string[];
@@ -37,8 +45,8 @@ export interface PinImageOptions {
   pixelRatio?: number;
 }
 
-/** MapLibre map.addImage에 바로 넣을 수 있는 RGBA 이미지 데이터를 Canvas로 생성한다. */
-export function createPinImage(options: PinImageOptions) {
+/** 핀 모양 Canvas를 그린다 — map.addImage용(createPinImage)과 DOM Marker용(createPinElement)이 공유. */
+function buildPinCanvas(options: PinImageOptions): HTMLCanvasElement {
   const {
     path = DEFAULT_PIN_PATH,
     srcWidth = DEFAULT_PIN_SRC_WIDTH,
@@ -98,13 +106,36 @@ export function createPinImage(options: PinImageOptions) {
     ctx.fillText(label, glyphCenter.x * scale, glyphCenter.y * scale);
   }
 
+  return canvas;
+}
+
+/** MapLibre map.addImage에 바로 넣을 수 있는 RGBA 이미지 데이터를 Canvas로 생성한다. */
+export function createPinImage(options: PinImageOptions) {
+  const canvas = buildPinCanvas(options);
+  const ctx = canvas.getContext("2d")!;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   return {
     width: canvas.width,
     height: canvas.height,
     data: imageData.data,
-    pixelRatio,
+    pixelRatio: options.pixelRatio ?? 3,
   };
+}
+
+/**
+ * map.addImage용이 아니라 DOM에 바로 꽂을 마커 엘리먼트가 필요할 때 쓴다(spiderfy 등).
+ * 캔버스는 pixelRatio 배율로 그려져 있으므로 CSS 크기만 cssWidth 기준으로 맞춰주면
+ * 레티나에서도 또렷하다 — map.addImage 경로가 pixelRatio 옵션으로 하는 것과 같은 원리.
+ */
+export function createPinElement(options: PinImageOptions): HTMLCanvasElement {
+  const canvas = buildPinCanvas(options);
+  const srcWidth = options.srcWidth ?? DEFAULT_PIN_SRC_WIDTH;
+  const srcHeight = options.srcHeight ?? DEFAULT_PIN_SRC_HEIGHT;
+  canvas.style.width = `${options.cssWidth}px`;
+  canvas.style.height = `${options.cssWidth * (srcHeight / srcWidth)}px`;
+  canvas.style.cursor = "pointer";
+  canvas.style.display = "block";
+  return canvas;
 }
 
 /** 이미지가 아직 없을 때만 생성해 등록한다 — 여러 데이터 레이어가 같은 id로 중복 호출해도 안전. */

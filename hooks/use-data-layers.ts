@@ -8,6 +8,8 @@ import { registerClickRoutes, type ClickRoute } from "@/lib/map/click-router";
 import { registerPinImage, STANDARD_PIN_WIDTH } from "@/lib/map/pin-image";
 import { teardownLayerGroup } from "@/lib/map/layer-lifecycle";
 import { getDataLayer } from "@/lib/map/datasets";
+import { MAX_SPIDERFY_LEAVES, dedupeFeatures } from "@/lib/map/spiderfy";
+import { useSpiderfy } from "@/hooks/use-spiderfy";
 
 // 검색(search-*)이 우선순위 0을 쓰므로 데이터 레이어는 그 아래에서 시작한다.
 // 배열 순서(레지스트리 순)를 그대로 우선순위로 쓴다 — 나중에 등록될 레이어일수록 후순위.
@@ -41,6 +43,7 @@ export function useDataLayers(
   activeLayerIds: string[],
 ) {
   const [selected, setSelected] = useState<SelectedFeature | null>(null);
+  const spiderfy = useSpiderfy(map);
 
   const activeLayers = useMemo(
     () => activeLayerIds.map(getDataLayer).filter((l) => l != null),
@@ -139,7 +142,47 @@ export function useDataLayers(
         );
       }
 
-      const onPointClick: ClickRoute["onClick"] = (feature) => {
+      const onPointClick: ClickRoute["onClick"] = (feature, event) => {
+        // 같은 픽셀에 여러 feature가 겹쳐 렌더된 경우(icon-allow-overlap:true) —
+        // 좌표가 완전히 같은 케이스(건물 단위 좌표, clusterMaxZoom 이상 확대 등)라
+        // 정확히 이 지점만 질의하면 전부 잡힌다.
+        const stacked = map.queryRenderedFeatures(event.point, {
+          layers: [ids.point],
+        });
+        const distinct = dedupeFeatures(stacked);
+
+        if (distinct.length > 1 && distinct.length <= MAX_SPIDERFY_LEAVES) {
+          const anchor =
+            feature.geometry.type === "Point"
+              ? (feature.geometry.coordinates as [number, number])
+              : null;
+          if (!anchor) return;
+          const key = `${ids.point}:${anchor.join(",")}`;
+          if (spiderfy.getCurrentKey() === key) {
+            spiderfy.close();
+          } else {
+            spiderfy.open({
+              key,
+              anchor,
+              color: def.color,
+              icon: def.icon,
+              items: distinct.map((f) => ({
+                properties: (f.properties ?? {}) as Record<string, unknown>,
+                coordinates: (f.geometry as GeoJSON.Point)
+                  .coordinates as [number, number],
+              })),
+              onSelect: (item) =>
+                setSelected({
+                  layer: def,
+                  properties: item.properties,
+                  coordinates: item.coordinates,
+                }),
+            });
+          }
+          spiderfy.markEventHandled(event);
+          return;
+        }
+
         setSelected({
           layer: def,
           properties: feature.properties as Record<string, unknown>,
@@ -150,6 +193,8 @@ export function useDataLayers(
         });
       };
       const onClusterClick: ClickRoute["onClick"] = (feature) => {
+        // 클러스터 클릭은 항상 확대(zoom-in)만 한다 — spiderfy는 클러스터가 아니라
+        // "최대 줌에서도 완전히 같은 좌표에 겹친 포인트"(onPointClick)에서만 쓴다.
         if (feature.geometry.type !== "Point") return;
         const center = feature.geometry.coordinates as [number, number];
         const clusterId = feature.properties?.cluster_id;
@@ -157,6 +202,7 @@ export function useDataLayers(
           | maplibregl.GeoJSONSource
           | undefined;
         if (clusterId == null || !geojsonSource) return;
+
         geojsonSource
           .getClusterExpansionZoom(clusterId)
           .then((zoom) => map.easeTo({ center, zoom }))
@@ -204,8 +250,12 @@ export function useDataLayers(
 
     return () => {
       cleanups.forEach((cleanup) => cleanup());
+      // 레이어 구성이 바뀌는 모든 경우(토글 포함)에 무조건 닫는다 — 소스/레이어가
+      // 다시 add되면 spiderfy가 참조하던 좌표/속성이 stale해질 수 있고, Marker는
+      // DOM이라 소스/레이어 재생성과 무관하게 안 닫으면 유령 마커로 남는다.
+      spiderfy.close();
     };
-  }, [map, styleReady, activeLayers]);
+  }, [map, styleReady, activeLayers, spiderfy]);
 
   return { selected, clearSelected: () => setSelected(null) };
 }

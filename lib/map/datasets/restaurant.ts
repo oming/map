@@ -1,3 +1,4 @@
+import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
 
 // lucide-react "utensils" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
@@ -15,7 +16,7 @@ export const restaurantSuwonLayer: DataLayerDef = {
   icon: { paths: UTENSILS_ICON_PATHS },
   source: {
     kind: "geojson",
-    url: "/data/restaurant-suwon.geojson",
+    url: dataUrl("restaurant-suwon"),
     cluster: { radius: 50, maxZoom: 17 },
   },
   detail: {

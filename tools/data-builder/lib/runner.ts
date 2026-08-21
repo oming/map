@@ -14,6 +14,7 @@ import {
   createGeocodeStats,
   type GeocodeStats,
 } from "./geocode.js";
+import { writeDatasetGeojson } from "./output.js";
 import type { BuildRecipe } from "./recipe-types.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -199,12 +200,10 @@ export async function runRecipe(recipe: BuildRecipe): Promise<void> {
   );
 
   console.log("\n[4/4] 파일 쓰기");
-  const outPath = join(root, "public", "data", `${recipe.id}.geojson`);
-  writeFileSync(
-    outPath,
-    JSON.stringify({ type: "FeatureCollection", features }),
-    "utf8",
-  );
+  const outPath = writeDatasetGeojson(root, recipe.id, {
+    type: "FeatureCollection",
+    features,
+  });
   console.log(`      -> ${outPath}`);
 
   const statsPath = join(DATA_BUILDER_DIR, "cache", `${recipe.id}.stats.json`);

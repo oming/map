@@ -1,3 +1,4 @@
+import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
 
 // lucide-react "toilet" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
@@ -14,7 +15,7 @@ export const toiletSuwonLayer: DataLayerDef = {
   icon: { paths: TOILET_ICON_PATHS },
   source: {
     kind: "geojson",
-    url: "/data/toilet-suwon.geojson",
+    url: dataUrl("toilet-suwon"),
     cluster: { radius: 50, maxZoom: 17 },
   },
   detail: {

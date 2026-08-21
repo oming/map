@@ -12,6 +12,7 @@ import {
   geocodeAddress,
   createGeocodeStats,
 } from "./lib/geocode.js";
+import { writeDatasetGeojson } from "./lib/output.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONCURRENCY = 2;
@@ -128,12 +129,10 @@ async function main(): Promise<void> {
   );
 
   console.log("\n[4/4] 파일 쓰기");
-  const outPath = join(root, "public", "data", "restaurant-suwon.geojson");
-  writeFileSync(
-    outPath,
-    JSON.stringify({ type: "FeatureCollection", features }),
-    "utf8",
-  );
+  const outPath = writeDatasetGeojson(root, "restaurant-suwon", {
+    type: "FeatureCollection",
+    features,
+  });
   console.log(`      -> ${outPath}`);
 
   const statsPath = join(__dirname, "cache", "restaurant-suwon.stats.json");

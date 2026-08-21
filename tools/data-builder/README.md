@@ -24,6 +24,24 @@ pnpm build:data-builder wifi-suwon
 pnpm build:data-builder:restaurant
 ```
 
+축제(`festival`, 전국문화축제표준데이터)는 로컬 파일이 아니라 data.go.kr OpenAPI를
+`pageNo`/`numOfRows` 페이징으로 직접 호출하는 방식이라 레시피 시스템(로컬 파일 전용) 밖의
+독립 스크립트(`build-festival.ts`)로 구현했습니다. `DATA_GO_KR_FESTIVAL_KEY`(`.env.local`)가
+필요합니다:
+
+```bash
+pnpm build:data-builder:festival
+```
+
+이 스크립트는 **진행중 + 예정 축제만** 남기고 종료된 축제는 빌드 시점에 걸러냅니다
+(`fstvlEndDate` < 오늘). 즉 결과가 실행 시점에 따라 달라지므로, 데이터가 오래되면(원본은
+분기 단위 갱신) 주기적으로 재실행해서 결과를 다시 커밋해야 합니다.
+
+같은 장소(좌표)에서 여러 축제가 열리는 경우(예: 한 공연장에서 축제가 여러 건 개최)가
+실제로 꽤 있다(약 20%). 빌드타임에 병합하지 않고 개별 feature로 그대로 둔다 — 지도
+쪽에서 겹친 지점을 spiderfy로 펼쳐서 선택하게 한다(`hooks/use-spiderfy.ts`). 병합하면
+개별 항목의 홈페이지/전화 같은 링크가 뭉개지고 지도 위에서 바로 선택할 수도 없어서다.
+
 ## 파이프라인
 
 ```
@@ -33,10 +51,23 @@ pnpm build:data-builder:restaurant
       - coordinates.kind === "geocode": V-World Geocoder 2.0 (도로명 우선, 지번 폴백)
   → 한반도 bbox 검증 (범위 이탈 시 드롭)
   → 좌표 5자리 절삭(~1.1m) + 문자열 NFC 정규화
-  → (옵션) dedupMerge: 반올림된 좌표가 같은 행들 중 완전 중복 제거 + 다중 시설 병합
-  → mapRow (또는 병합 시 mergeGroup)로 최종 속성 생성
-  → public/data/<id>.geojson + cache/<id>.stats.json 저장
+  → (옵션) dedup: 반올림된 좌표가 같은 행들 중 완전 중복 행만 제거(병합은 하지 않음)
+  → mapRow로 최종 속성 생성
+  → public/data/<id>.<콘텐츠해시>.geojson + cache/<id>.stats.json 저장
 ```
+
+`public/data/:path*`는 `next.config.ts`에서 1년 immutable 캐시를 쓰기 때문에, 파일명이
+고정돼 있으면 재빌드로 데이터가 바뀌어도 이미 접속했던 브라우저는 옛 데이터를 계속 보게
+됩니다. 그래서 출력 파일명에 콘텐츠 해시를 넣습니다(`lib/output.ts`의
+`writeDatasetGeojson`) — 내용이 바뀌면 파일명도 바뀌고, `lib/map/datasets/data-manifest.json`의
+해당 id 항목이 새 해시로 갱신됩니다. 데이터셋 정의(`lib/map/datasets/<id>.ts`)는 이 URL을
+직접 쓰지 않고 `dataUrl(id)`(`lib/map/datasets/data-url.ts`)로 참조하므로, 별도 코드 수정 없이
+재빌드 결과가 자동으로 반영됩니다. 이전 해시 파일은 빌드할 때마다 자동으로 정리됩니다.
+
+같은 좌표에 여러 지점이 남아도(건물 단위 좌표, 우연히 같은 좌표로 반올림된 경우 등)
+병합하지 않는다 — 개별 feature 그대로 두고, 지도 위에서 겹친 지점은 spiderfy로 펼쳐서
+선택한다(`hooks/use-spiderfy.ts`, `lib/map/spiderfy.ts`). `dedup`은 좌표가 같은 행들
+중 "완전히 같은 데이터가 중복 입력된 경우"만 제거하는 용도다.
 
 레시피는 좌표가 **이미 컬럼에 존재한다는 것을 기본값**으로 삼습니다(`kind: "present"`).
 공공데이터포털의 시설류 데이터셋은 대부분 위경도를 이미 제공하기 때문입니다. 주소만 있고
@@ -45,7 +76,7 @@ pnpm build:data-builder:restaurant
 ## 새 레시피 추가하기
 
 `recipes/<id>.ts`에 `BuildRecipe`(타입: `lib/recipe-types.ts`) 상수 `recipe`를 export하면
-끝입니다. 예시는 `recipes/toilet-gyeonggi.ts`(좌표 존재 + dedupMerge 사용) /
+끝입니다. 예시는 `recipes/toilet-gyeonggi.ts`(좌표 존재 + dedup 사용) /
 `recipes/toilet-suwon.ts`(지오코딩 사용) 참고.
 
 ## 지오코딩 캐시

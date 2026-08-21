@@ -1,0 +1,14 @@
+{
+  "totalRows": 100,
+  "hitCache": 0,
+  "roadOk": 99,
+  "failed": 1,
+  "failedAddresses": [
+    "경기도 수원시 팔달구 메산로1-10"
+  ],
+  "networkFailed": 0,
+  "networkFailedAddresses": [],
+  "droppedNoCoord": 1,
+  "droppedOutOfBBox": 0,
+  "featuresWritten": 99
+}

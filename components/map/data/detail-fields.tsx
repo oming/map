@@ -21,12 +21,6 @@ export interface DetailLinkSchema {
   href: (properties: Record<string, unknown>) => string;
 }
 
-export interface DetailListSchema {
-  /** properties[key]가 배열일 때만 렌더링한다. */
-  key: string;
-  itemLabel: (item: unknown) => string;
-}
-
 export interface DetailFieldsSchema {
   titleKey: string;
   /** 특별 취급(라벨/포맷/숨김/순서)이 필요한 속성만 등록한다. 등록되지 않은 속성은
@@ -36,8 +30,6 @@ export interface DetailFieldsSchema {
    *  같은 클로저가 읽는 속성은 정적으로 감지할 수 없으므로 여기에 직접 나열해야 한다. */
   hiddenKeys?: string[];
   links?: DetailLinkSchema[];
-  /** 같은 좌표에 여러 시설이 묶인 경우(예: 건물 단위 좌표만 있는 화장실) 목록으로 나열한다. */
-  list?: DetailListSchema;
   /** 팝업(마커 클릭 시 첫 화면)에 보여줄 속성 키. 생략하면 자동 노출 대상 중 앞에서부터
    *  몇 개를 기본값으로 쓴다(POPUP_FIELD_LIMIT, detail-popup.tsx). */
   popupFields?: string[];
@@ -47,6 +39,11 @@ export interface ResolvedDetailField {
   key: string;
   label: string;
   display: string;
+}
+
+export interface ResolvedDetailLink {
+  label: string;
+  href: string;
 }
 
 function formatValue(
@@ -79,7 +76,6 @@ export function resolveDetailFields(
 ): ResolvedDetailField[] {
   const overrides = schema.overrides ?? {};
   const excluded = new Set<string>([schema.titleKey, ...(schema.hiddenKeys ?? [])]);
-  if (schema.list) excluded.add(schema.list.key);
   for (const [key, override] of Object.entries(overrides)) {
     if (override.hidden) excluded.add(key);
   }
@@ -107,6 +103,21 @@ export function resolveDetailFields(
 }
 
 /**
+ * href가 빈 문자열이면 원본 속성이 비어있다는 뜻이다 — 깨진 링크(예: 값 없는
+ * "tel:", 빈 href)를 만들지 않도록 걸러낸다. Popup/Sheet 둘 다 이 함수를 거쳐야
+ * 한다 — href 계산 자체가 필드마다 다른 클로저라 정적으로 감지할 수 없다.
+ */
+export function resolveDetailLinks(
+  properties: Record<string, unknown>,
+  schema: DetailFieldsSchema,
+): ResolvedDetailLink[] {
+  if (!schema.links) return [];
+  return schema.links
+    .map((link) => ({ label: link.label, href: link.href(properties) }))
+    .filter((link) => link.href);
+}
+
+/**
  * 데이터 레이어 상세 UI의 기본 렌더러. 대부분의 데이터셋(Wi-Fi, 화장실 등)은
  * 이 컴포넌트만으로 충분하고, 특수한 레이아웃이 필요한 경우에만
  * DataLayerDef.detail.custom(lazy 컴포넌트)으로 대체한다.
@@ -120,6 +131,7 @@ export function DetailFields({
 }) {
   const title = formatValue(properties[schema.titleKey]) ?? "";
   const fields = resolveDetailFields(properties, schema);
+  const links = resolveDetailLinks(properties, schema);
 
   return (
     <div className="flex flex-col gap-3">
@@ -134,12 +146,12 @@ export function DetailFields({
           </div>
         ))}
       </dl>
-      {schema.links && schema.links.length > 0 && (
+      {links.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {schema.links.map((link) => (
+          {links.map((link) => (
             <a
               key={link.label}
-              href={link.href(properties)}
+              href={link.href}
               target="_blank"
               rel="noreferrer"
               className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
@@ -150,17 +162,6 @@ export function DetailFields({
           ))}
         </div>
       )}
-      {schema.list &&
-        Array.isArray(properties[schema.list.key]) &&
-        (properties[schema.list.key] as unknown[]).length > 0 && (
-          <ul className="flex max-h-72 flex-col divide-y divide-border overflow-y-auto rounded-md border text-sm">
-            {(properties[schema.list.key] as unknown[]).map((item, index) => (
-              <li key={index} className="px-3 py-2">
-                {schema.list!.itemLabel(item)}
-              </li>
-            ))}
-          </ul>
-        )}
     </div>
   );
 }

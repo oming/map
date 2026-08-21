@@ -33,30 +33,15 @@ export const recipe: BuildRecipe = {
   inputFormat: "csv",
   coordinates: { kind: "present", latKey: "위도", lonKey: "경도" },
   mapRow: (row) => ({ ...toFacility(row) }),
-  dedupMerge: {
+  dedup: {
     // 원본에 이름+주소가 완전히 같은 행이 그대로 중복 입력된 경우가 있다.
     // 같은 좌표 안에서만 중복 제거한다 — 다른 좌표의 동명 시설(체인점 등)은 안 건드림.
+    // 원본이 건물 단위로만 좌표를 제공해 같은 좌표에 여러 시설이 남는 경우가 흔하지만
+    // (예: 스타필드/신세계백화점/이마트가 한 좌표에 섞여 있는 경우), 병합하지 않고
+    // 개별 feature로 둔다 — 지도 위에서 spiderfy로 펼쳐서 선택한다.
     signature: (row) => {
       const f = toFacility(row);
       return `${f.name}||${f.address}`;
-    },
-    // 원본이 건물 단위로만 좌표를 제공해 개별 시설을 지도상에서 분리할 방법이
-    // 없으므로 마커 하나로 묶고 상세 시트에서 목록으로 보여준다. title(name)은
-    // 개별 시설명 대신 주소를 쓴다 — 여러 시설명 중 하나를 "대표"로 고를 근거가
-    // 없다(예: 스타필드/신세계백화점/이마트가 한 좌표에 섞여 있는 경우).
-    mergeGroup: (rows) => {
-      const facilities = rows.map(toFacility);
-      const address = facilities[0].address;
-      return {
-        name: address,
-        address,
-        facilityCount: facilities.length,
-        facilities: facilities.map((f) => ({
-          name: f.name,
-          category: f.category,
-          openHours: f.openHours,
-        })),
-      };
     },
   },
 };

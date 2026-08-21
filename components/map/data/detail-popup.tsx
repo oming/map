@@ -7,7 +7,7 @@ import { ExternalLink, XIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SelectedFeature } from "@/hooks/use-data-layers";
-import { resolveDetailFields } from "./detail-fields";
+import { resolveDetailFields, resolveDetailLinks } from "./detail-fields";
 
 const POPUP_FIELD_LIMIT = 3;
 
@@ -27,6 +27,7 @@ function PopupContent({
         onlyKeys: layer.detail.popupFields,
       })
     : resolveDetailFields(properties, layer.detail).slice(0, POPUP_FIELD_LIMIT);
+  const links = resolveDetailLinks(properties, layer.detail);
 
   return (
     <div className="flex w-56 flex-col gap-1.5 text-sm">
@@ -52,12 +53,12 @@ function PopupContent({
           ))}
         </dl>
       )}
-      {layer.detail.links && layer.detail.links.length > 0 && (
+      {links.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {layer.detail.links.map((link) => (
+          {links.map((link) => (
             <a
               key={link.label}
-              href={link.href(properties)}
+              href={link.href}
               target="_blank"
               rel="noreferrer"
               className={cn(

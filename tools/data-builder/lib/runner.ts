@@ -29,8 +29,9 @@ interface CoordRow {
 
 /**
  * 모든 레시피가 공유하는 실행 흐름: 입력 읽기 → 좌표 확보(이미 있음/지오코딩) →
- * bbox 검증 → (옵션) 동일좌표 중복제거·병합 → mapRow → geojson/stats 저장.
- * 각 단계의 세부 규칙(컬럼 매핑, 병합 방식)만 레시피가 결정한다.
+ * bbox 검증 → (옵션) 동일좌표 완전중복 제거 → mapRow → geojson/stats 저장.
+ * 각 단계의 세부 규칙(컬럼 매핑, dedup 서명)만 레시피가 결정한다. 같은 좌표에 여러
+ * 지점이 남아도 병합하지 않는다 — 지도 위에서 spiderfy로 펼쳐서 선택하게 한다.
  */
 export async function runRecipe(recipe: BuildRecipe): Promise<void> {
   const root = getProjectRoot();
@@ -130,15 +131,14 @@ export async function runRecipe(recipe: BuildRecipe): Promise<void> {
 
   console.log(
     "\n[3/4] bbox 검증 + 좌표 반올림" +
-      (recipe.dedupMerge ? " + 동일좌표 중복 제거/병합" : ""),
+      (recipe.dedup ? " + 동일좌표 중복 제거" : ""),
   );
   let droppedOutOfBBox = 0;
   let exactDuplicatesRemoved = 0;
-  let mergedGroups = 0;
   const features: Feature[] = [];
 
-  if (!recipe.dedupMerge) {
-    // 병합이 없는 레시피는 원본 행 순서를 그대로 유지한다 — 좌표로 그룹핑하면
+  if (!recipe.dedup) {
+    // dedup이 없는 레시피는 원본 행 순서를 그대로 유지한다 — 좌표로 그룹핑하면
     // 순서가 바뀌어 기존 geojson과의 byte-for-byte 비교가 무의미해진다.
     for (const { row, lon, lat, geocodeType } of coordRows) {
       if (!isInKoreaBBox(lon, lat)) {
@@ -175,40 +175,27 @@ export async function runRecipe(recipe: BuildRecipe): Promise<void> {
 
     for (const { lon, lat, rows: groupRows } of byCoord.values()) {
       const seen = new Set<string>();
-      const deduped: Record<string, string>[] = [];
       for (const row of groupRows) {
-        const sig = recipe.dedupMerge.signature(row);
+        const sig = recipe.dedup.signature(row);
         if (seen.has(sig)) {
           exactDuplicatesRemoved++;
           continue;
         }
         seen.add(sig);
-        deduped.push(row);
-      }
-
-      if (deduped.length === 1) {
+        // 같은 좌표에 여러 지점이 남아도 병합하지 않는다 — 개별 feature로 두고
+        // 지도 위에서 spiderfy로 펼쳐서 선택하게 한다(hooks/use-spiderfy.ts).
         features.push({
           type: "Feature",
           geometry: { type: "Point", coordinates: [lon, lat] },
-          properties: recipe.mapRow(deduped[0], {}),
+          properties: recipe.mapRow(row, {}),
         });
-        continue;
       }
-
-      mergedGroups++;
-      features.push({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [lon, lat] },
-        properties: recipe.dedupMerge.mergeGroup(deduped, lon, lat),
-      });
     }
   }
 
   console.log(
     `      -> ${features.length}건 (좌표 없음 ${droppedNoCoord}, bbox 이탈 ${droppedOutOfBBox}` +
-      (recipe.dedupMerge
-        ? `, 완전 중복 제거 ${exactDuplicatesRemoved}, 다중 시설 병합 ${mergedGroups}곳)`
-        : ")"),
+      (recipe.dedup ? `, 완전 중복 제거 ${exactDuplicatesRemoved})` : ")"),
   );
 
   console.log("\n[4/4] 파일 쓰기");
@@ -240,9 +227,7 @@ export async function runRecipe(recipe: BuildRecipe): Promise<void> {
         totalRows: rows.length,
         droppedNoCoord,
         droppedOutOfBBox,
-        ...(recipe.dedupMerge
-          ? { exactDuplicatesRemoved, mergedGroups }
-          : {}),
+        ...(recipe.dedup ? { exactDuplicatesRemoved } : {}),
         featuresWritten: features.length,
       };
   writeFileSync(statsPath, JSON.stringify(statsObj, null, 2) + "\n", "utf8");

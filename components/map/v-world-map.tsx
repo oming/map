@@ -12,9 +12,7 @@ import { migrateLegacyHash } from "@/lib/map/hash-state";
 import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
 import poiLayersRaw from "@/data/poi-layers.json";
 
-const POI_DEBUG_LAYER_IDS = (poiLayersRaw as { id: string }[]).map(
-  (l) => l.id,
-);
+const POI_DEBUG_LAYER_IDS = (poiLayersRaw as { id: string }[]).map((l) => l.id);
 
 // 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
 const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
@@ -137,7 +135,9 @@ export default function VWorldMap({
         (feature, e) => {
           new Popup()
             .setLngLat(e.lngLat)
-            .setHTML(`<pre>${JSON.stringify(feature.properties, null, 2)}</pre>`)
+            .setHTML(
+              `<pre>${JSON.stringify(feature.properties, null, 2)}</pre>`,
+            )
             .setMaxWidth("500px")
             .addTo(map);
         },

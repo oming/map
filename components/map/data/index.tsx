@@ -11,6 +11,7 @@ import {
 } from "@/lib/map/hash-state";
 import { LayerToggle } from "./layer-toggle";
 import { DetailSheet } from "./detail-sheet";
+import { DetailPopup } from "./detail-popup";
 
 function readActiveIds(): string[] {
   const raw = readHashParam("layers");
@@ -44,6 +45,15 @@ export function DataLayers() {
     styleReady,
     activeIds,
   );
+  // 마커 클릭 시 항상 팝업부터 보여준다 — "상세보기"를 눌러야 true가 된다.
+  // 새 피처를 선택할 때마다 이전 피처의 Sheet가 열려있던 상태는 신경 쓰지 않고 리셋한다.
+  // (effect가 아니라 렌더 중에 조정 — https://react.dev/learn/you-might-not-need-an-effect)
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [prevSelected, setPrevSelected] = useState(selected);
+  if (selected !== prevSelected) {
+    setPrevSelected(selected);
+    setSheetOpen(false);
+  }
 
   return (
     <>
@@ -52,8 +62,14 @@ export function DataLayers() {
         activeIds={activeIds}
         onToggle={toggleLayer}
       />
+      <DetailPopup
+        map={map}
+        selected={sheetOpen ? null : selected}
+        onOpenSheet={() => setSheetOpen(true)}
+        onClose={clearSelected}
+      />
       <DetailSheet
-        selected={selected}
+        selected={sheetOpen ? selected : null}
         onOpenChange={(open) => {
           if (!open) clearSelected();
         }}

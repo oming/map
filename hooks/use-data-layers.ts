@@ -26,6 +26,8 @@ function layerIds(def: DataLayerDef) {
 export interface SelectedFeature {
   layer: DataLayerDef;
   properties: Record<string, unknown>;
+  /** 팝업 앵커링용 — Point가 아닌 지오메트리는 없다(현재 모든 데이터 레이어가 Point). */
+  coordinates: [number, number] | null;
 }
 
 /**
@@ -141,6 +143,10 @@ export function useDataLayers(
         setSelected({
           layer: def,
           properties: feature.properties as Record<string, unknown>,
+          coordinates:
+            feature.geometry.type === "Point"
+              ? (feature.geometry.coordinates as [number, number])
+              : null,
         });
       };
       const onClusterClick: ClickRoute["onClick"] = (feature) => {

@@ -22,12 +22,14 @@ export const wifiSuwonLayer: DataLayerDef = {
   },
   detail: {
     titleKey: "name",
-    fields: [
-      { key: "address", label: "주소" },
-      { key: "ssid", label: "SSID" },
-      { key: "provider", label: "제공사" },
-      { key: "category", label: "구분" },
-    ],
+    hiddenKeys: ["id"],
+    overrides: {
+      address: { label: "주소" },
+      ssid: { label: "SSID" },
+      provider: { label: "제공사" },
+      category: { label: "구분" },
+    },
+    popupFields: ["address", "ssid"],
   },
   attribution: {
     name: "수원시 무료 와이파이 정보",

@@ -19,17 +19,18 @@ export const toiletSuwonLayer: DataLayerDef = {
   },
   detail: {
     titleKey: "name",
-    fields: [
-      { key: "address", label: "주소" },
-      { key: "category", label: "구분" },
-      { key: "openHours", label: "개방시간" },
-      { key: "owner", label: "소유구분" },
-      {
-        key: "hasDiaperTable",
+    hiddenKeys: ["id", "geocodeType"],
+    overrides: {
+      address: { label: "주소" },
+      category: { label: "구분" },
+      openHours: { label: "개방시간" },
+      owner: { label: "소유구분" },
+      hasDiaperTable: {
         label: "기저귀교환대",
         format: (v) => (v ? "있음" : "없음"),
       },
-    ],
+    },
+    popupFields: ["address", "category", "openHours"],
   },
   attribution: {
     name: "수원시 공중화장실 정보",

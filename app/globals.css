@@ -150,4 +150,25 @@
     padding-bottom: env(safe-area-inset-bottom);
     padding-right: env(safe-area-inset-right);
   }
+
+  /* 데이터 레이어 마커 팝업(detail-popup.tsx) — 기본 흰 배경을 다크모드에서도 맞게 테마 토큰으로 덮어쓴다. */
+  .maplibregl-popup-content {
+    background: var(--popover);
+    color: var(--popover-foreground);
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 16px oklch(0 0 0 / 15%);
+  }
+  .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+    border-top-color: var(--popover);
+  }
+  .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+    border-bottom-color: var(--popover);
+  }
+  .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+    border-right-color: var(--popover);
+  }
+  .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+    border-left-color: var(--popover);
+  }
 }

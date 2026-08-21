@@ -11,7 +11,8 @@
     "build:style-builder": "tsx tools/style-builder/build.ts",
     "build:sprite-builder": "tsx tools/sprite-builder/build.ts",
     "build:glyph-builder": "echo 'glyph-builder is not implemented yet. See tools/glyph-builder/README.md'",
-    "build:data-builder": "tsx tools/data-builder/build.ts",
+    "build:data-builder": "tsx tools/data-builder/run.ts",
+    "build:data-builder:restaurant": "tsx tools/data-builder/build-restaurant.ts",
     "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder"
   },
   "dependencies": {

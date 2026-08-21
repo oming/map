@@ -19,3 +19,13 @@ export function roundCoord(n: number): number {
 export function nfc(s: string): string {
   return s.normalize("NFC");
 }
+
+export function pick(row: Record<string, string>, key: string): string {
+  return row[key]?.trim() ?? "";
+}
+
+export interface Feature {
+  type: "Feature";
+  geometry: { type: "Point"; coordinates: [number, number] };
+  properties: Record<string, unknown>;
+}

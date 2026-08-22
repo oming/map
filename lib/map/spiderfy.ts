@@ -15,7 +15,7 @@ const LEG_SEPARATION = 56;
 // 겹침을 피하려고 특정 방향을 비워둘 필요는 없다.
 const START_ANGLE = -Math.PI / 2;
 
-export interface PixelOffset {
+interface PixelOffset {
   dx: number;
   dy: number;
 }
@@ -24,7 +24,7 @@ export interface PixelOffset {
  * count개 항목을 앵커를 중심으로 한 원 둘레에 균등 배치할 픽셀 오프셋. 12시
  * 방향에서 시작해 시계방향으로 돈다.
  */
-export function layoutSpiderfyOffsets(count: number): PixelOffset[] {
+function layoutSpiderfyOffsets(count: number): PixelOffset[] {
   if (count <= 0) return [];
   if (count === 1) return [{ dx: 0, dy: 0 }];
 
@@ -50,8 +50,8 @@ export function computeLegLngLats(
 ): [number, number][] {
   const anchorPx = map.project(anchor);
   return layoutSpiderfyOffsets(count).map(({ dx, dy }) => {
-    const p = map.unproject([anchorPx.x + dx, anchorPx.y + dy]);
-    return [p.lng, p.lat];
+    const lngLat = map.unproject([anchorPx.x + dx, anchorPx.y + dy]);
+    return [lngLat.lng, lngLat.lat];
   });
 }
 

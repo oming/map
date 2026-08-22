@@ -177,12 +177,12 @@ export async function runRecipe(recipe: BuildRecipe): Promise<void> {
     for (const { lon, lat, rows: groupRows } of byCoord.values()) {
       const seen = new Set<string>();
       for (const row of groupRows) {
-        const sig = recipe.dedup.signature(row);
-        if (seen.has(sig)) {
+        const signature = recipe.dedup.signature(row);
+        if (seen.has(signature)) {
           exactDuplicatesRemoved++;
           continue;
         }
-        seen.add(sig);
+        seen.add(signature);
         // 같은 좌표에 여러 지점이 남아도 병합하지 않는다 — 개별 feature로 두고
         // 지도 위에서 spiderfy로 펼쳐서 선택하게 한다(hooks/use-spiderfy.ts).
         features.push({

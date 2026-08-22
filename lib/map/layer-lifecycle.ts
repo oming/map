@@ -7,7 +7,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 // throw한다 — 그래서 레이어 → 소스 → 이미지 순서가 필수이고, 각 단계를 개별 try/catch로
 // 감싼다(React StrictMode의 effect 이중 실행 시 이미 제거된 대상을 다시 지우는 경우 포함).
 
-export function safeRemoveLayers(map: MaplibreMap, layerIds: string[]): void {
+function safeRemoveLayers(map: MaplibreMap, layerIds: string[]): void {
   for (const id of layerIds) {
     if (!map.getLayer(id)) continue;
     try {
@@ -18,10 +18,7 @@ export function safeRemoveLayers(map: MaplibreMap, layerIds: string[]): void {
   }
 }
 
-export function safeRemoveSources(
-  map: MaplibreMap,
-  sourceIds: string[],
-): void {
+function safeRemoveSources(map: MaplibreMap, sourceIds: string[]): void {
   for (const id of sourceIds) {
     if (!map.getSource(id)) continue;
     try {
@@ -32,7 +29,7 @@ export function safeRemoveSources(
   }
 }
 
-export function safeRemoveImages(map: MaplibreMap, imageIds: string[]): void {
+function safeRemoveImages(map: MaplibreMap, imageIds: string[]): void {
   for (const id of imageIds) {
     if (!map.hasImage(id)) continue;
     try {

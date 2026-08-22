@@ -1,4 +1,3 @@
-// components/map/search/search-input.tsx
 "use client";
 
 import * as React from "react";

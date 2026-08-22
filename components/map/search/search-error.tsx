@@ -1,4 +1,3 @@
-// components/map/search/search-error.tsx
 "use client";
 
 import { Spinner } from "@/components/ui/spinner";

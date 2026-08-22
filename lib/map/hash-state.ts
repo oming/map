@@ -13,17 +13,17 @@ const LEGACY_HASH_RE =
  */
 export function migrateLegacyHash(): void {
   if (typeof window === "undefined") return;
-  const h = window.location.hash.slice(1);
-  if (LEGACY_HASH_RE.test(h)) {
+  const hash = window.location.hash.slice(1);
+  if (LEGACY_HASH_RE.test(hash)) {
     window.history.replaceState(
       window.history.state,
       "",
-      `${window.location.pathname}${window.location.search}#map=${h}`,
+      `${window.location.pathname}${window.location.search}#map=${hash}`,
     );
   }
 }
 
-function normalize(params: URLSearchParams): string {
+function toNormalizedHash(params: URLSearchParams): string {
   return (
     "#" +
     decodeURIComponent(params.toString())
@@ -51,7 +51,7 @@ export function writeHashParam(key: string, value: string | null): void {
   } else {
     params.delete(key);
   }
-  const hash = normalize(params);
+  const hash = toNormalizedHash(params);
   window.history.replaceState(
     window.history.state,
     "",

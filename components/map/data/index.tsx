@@ -16,8 +16,8 @@ import { DetailPopup } from "./detail-popup";
 function readActiveIds(): string[] {
   const raw = readHashParam("layers");
   if (!raw) return [];
-  const known = new Set(DATA_LAYERS.map((l) => l.id));
-  return raw.split(",").filter((id) => known.has(id));
+  const knownIds = new Set(DATA_LAYERS.map((layer) => layer.id));
+  return raw.split(",").filter((id) => knownIds.has(id));
 }
 
 /** VWorldMap의 children으로 마운트한다 — 지도 컨테이너에 포털되어 useMap()이 동작한다. */

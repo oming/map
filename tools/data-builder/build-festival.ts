@@ -1,10 +1,13 @@
+// 레시피 파이프라인(run.ts + recipes/)을 쓰지 않는 이유 — 입력이 로컬 파일이 아니라
+// data.go.kr OpenAPI라 페이지네이션·재시도·에러코드 해석이 필요하다(README 참고).
+// 종료된 축제를 실행 시점 기준으로 걸러내므로 출력은 매 실행마다 달라질 수 있다.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 import { loadEnvFile } from "../shared/env.js";
 import { getProjectRoot } from "../shared/project-root.js";
-import { isInKoreaBBox, roundCoord, nfc } from "./lib/geojson.js";
+import { isInKoreaBBox, roundCoord, nfc, type Feature } from "./lib/geojson.js";
 import { writeDatasetGeojson } from "./lib/output.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -59,12 +62,6 @@ interface ApiResponse {
     items?: FestivalItem[] | { item: FestivalItem[] } | "";
     totalCount?: number;
   };
-}
-
-interface Feature {
-  type: "Feature";
-  geometry: { type: "Point"; coordinates: [number, number] };
-  properties: Record<string, unknown>;
 }
 
 function sleep(ms: number): Promise<void> {

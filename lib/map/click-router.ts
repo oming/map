@@ -25,7 +25,7 @@ export interface ClickRoute {
 const routes = new Map<string, ClickRoute>();
 
 /** 라우트 등록. 반환값을 호출하면 해제된다(effect cleanup에서 사용). */
-export function registerClickRoute(route: ClickRoute): () => void {
+function registerClickRoute(route: ClickRoute): () => void {
   routes.set(route.layerId, route);
   return () => {
     if (routes.get(route.layerId) === route) {
@@ -49,22 +49,26 @@ export function registerClickRoutes(
 /** 앱 전체에서 한 번만 호출한다 (VWorldMap 마운트 시). 반환값은 map.remove() 전 해제용. */
 export function attachClickRouter(map: MaplibreMap): () => void {
   const onClick = (e: MapMouseEvent) => {
-    const ids = Array.from(routes.keys()).filter((id) => map.getLayer(id));
-    if (!ids.length) return;
+    const queryableLayerIds = Array.from(routes.keys()).filter((id) =>
+      map.getLayer(id),
+    );
+    if (!queryableLayerIds.length) return;
 
-    const features = map.queryRenderedFeatures(e.point, { layers: ids });
+    const features = map.queryRenderedFeatures(e.point, {
+      layers: queryableLayerIds,
+    });
     if (!features.length) return;
 
-    let best: { feature: MapGeoJSONFeature; route: ClickRoute } | null = null;
+    let winner: { feature: MapGeoJSONFeature; route: ClickRoute } | null = null;
     for (const feature of features) {
       const route = routes.get(feature.layer.id);
       if (!route) continue;
-      if (!best || route.priority < best.route.priority) {
-        best = { feature, route };
+      if (!winner || route.priority < winner.route.priority) {
+        winner = { feature, route };
       }
     }
-    if (!best) return;
-    best.route.onClick(best.feature, e);
+    if (!winner) return;
+    winner.route.onClick(winner.feature, e);
   };
 
   map.on("click", onClick);

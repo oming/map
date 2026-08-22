@@ -3,7 +3,7 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 // 검색 결과 마커에서 쓰던 것과 동일한 물방울 핀 SVG path (viewBox 384x512).
-export const DEFAULT_PIN_PATH =
+const DEFAULT_PIN_PATH =
   "M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.774-39.464 0z";
 const DEFAULT_PIN_SRC_WIDTH = 384;
 const DEFAULT_PIN_SRC_HEIGHT = 512;
@@ -110,7 +110,7 @@ function buildPinCanvas(options: PinImageOptions): HTMLCanvasElement {
 }
 
 /** MapLibre map.addImage에 바로 넣을 수 있는 RGBA 이미지 데이터를 Canvas로 생성한다. */
-export function createPinImage(options: PinImageOptions) {
+function createPinImage(options: PinImageOptions) {
   const canvas = buildPinCanvas(options);
   const ctx = canvas.getContext("2d")!;
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);

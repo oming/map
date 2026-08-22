@@ -1,3 +1,6 @@
+// 레시피 파이프라인(run.ts + recipes/)을 쓰지 않는 이유 — 입력이 이 데이터셋 전용
+// 마크다운 표라 lib/input.ts의 csv/json 리더로 읽을 수 없다(README 참고).
+// 좌표 확보 이후의 흐름은 lib/runner.ts와 같고 공용 유틸도 그대로 쓴다.
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -5,7 +8,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { loadEnvFile, resolveVworldApiKey } from "../shared/env.js";
 import { getProjectRoot } from "../shared/project-root.js";
 import { parseRestaurantMarkdownTable } from "./lib/markdown-table.js";
-import { isInKoreaBBox, roundCoord, nfc } from "./lib/geojson.js";
+import { isInKoreaBBox, roundCoord, nfc, type Feature } from "./lib/geojson.js";
+import { mapWithConcurrency } from "./lib/concurrency.js";
 import {
   loadCache,
   saveCache,
@@ -16,29 +20,6 @@ import { writeDatasetGeojson } from "./lib/output.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONCURRENCY = 2;
-
-interface Feature {
-  type: "Feature";
-  geometry: { type: "Point"; coordinates: [number, number] };
-  properties: Record<string, unknown>;
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await fn(items[index]);
-    }
-  }
-  await Promise.all(Array.from({ length: limit }, worker));
-  return results;
-}
 
 async function main(): Promise<void> {
   loadEnvFile(join(__dirname, "../..", ".env.local"));

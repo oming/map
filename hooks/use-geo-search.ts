@@ -1,11 +1,7 @@
-// hooks/use-geo-search.ts
 "use client";
 
 import useSWR from "swr";
-import type {
-  GeoSearchResponse,
-  GeoSearchResponseError,
-} from "@/app/api/geo-search/route";
+import type { GeoSearchResponse } from "@/app/api/geo-search/route";
 
 const fetcher = (url: string): Promise<GeoSearchResponse> =>
   fetch(url).then((res) => {
@@ -26,9 +22,8 @@ export interface UseGeoSearchResult {
   totalCount: number;
   totalPages: number;
   isLoading: boolean;
+  /** V-World가 내려준 에러와 SWR 네트워크 에러를 하나로 합친 값. */
   error: Error | undefined;
-  hasError: boolean;
-  responseError: GeoSearchResponseError | undefined;
 }
 
 const EMPTY_RESULT: UseGeoSearchResult = {
@@ -37,8 +32,6 @@ const EMPTY_RESULT: UseGeoSearchResult = {
   totalPages: 0,
   isLoading: false,
   error: undefined,
-  hasError: false,
-  responseError: undefined,
 };
 
 export function useGeoSearch({
@@ -72,15 +65,12 @@ export function useGeoSearch({
   if (!key) return EMPTY_RESULT;
 
   const responseError = data?.error;
-  const error = responseError ? new Error(responseError.text) : swrError;
 
   return {
     items: data?.items ?? [],
     totalCount: data?.totalCount ?? 0,
     totalPages: data?.totalPages ?? 0,
     isLoading,
-    error,
-    hasError: !!responseError,
-    responseError,
+    error: responseError ? new Error(responseError.text) : swrError,
   };
 }

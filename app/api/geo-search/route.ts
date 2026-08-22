@@ -1,4 +1,3 @@
-// app/api/geo-search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import {
   VWORLD_API_KEY,
@@ -34,8 +33,45 @@ export type GeoSearchResponse = {
   error?: GeoSearchResponseError;
 };
 
-function normalize(item: any, kind: "PLACE" | "ADDRESS"): GeoSearchItem {
-  // vworld는 point.x / point.y를 문자열로 내려줌 -> 반드시 숫자 변환
+/**
+ * V-World search API의 원본 응답 형태. 좌표가 문자열로 오는 등 그대로 쓰기 어려워
+ * 이 파일 안에서만 다루고, 바깥으로는 GeoSearchItem으로 변환해 내보낸다.
+ */
+interface VWorldSearchItem {
+  id: string;
+  title: string;
+  category?: string;
+  point: {
+    /** 경도 — 숫자가 아니라 문자열로 내려온다. */
+    x: string;
+    /** 위도 — 숫자가 아니라 문자열로 내려온다. */
+    y: string;
+  };
+  address?: {
+    zipcode?: string;
+    /** "road" | "parcel" — 주소 유형 */
+    category?: string;
+    road?: string;
+    parcel?: string;
+    bldnm?: string;
+    bldnmdc?: string;
+  };
+}
+
+interface VWorldSearchResponse {
+  response: {
+    status: "OK" | "NOT_FOUND" | "ERROR";
+    error?: { code?: string; text?: string };
+    record?: { total?: number | string };
+    page?: { current?: number | string; total?: number | string };
+    result?: { items?: VWorldSearchItem[] };
+  };
+}
+
+function toGeoSearchItem(
+  item: VWorldSearchItem,
+  kind: GeoSearchItem["kind"],
+): GeoSearchItem {
   const lon = Number(item.point.x);
   const lat = Number(item.point.y);
 
@@ -62,7 +98,7 @@ function normalize(item: any, kind: "PLACE" | "ADDRESS"): GeoSearchItem {
     subtitle: bldnm ? (road ?? "") : (parcel ?? ""),
     lon,
     lat,
-    category, // "road" | "parcel" (주소 유형)
+    category,
     zipcode,
     road,
     parcel,
@@ -82,17 +118,17 @@ export async function GET(req: NextRequest) {
     Math.max(1, Number(searchParams.get("size") ?? 10)),
   );
 
-  const empty: GeoSearchResponse = {
+  const emptyResult: GeoSearchResponse = {
     items: [],
     totalCount: 0,
     page,
     totalPages: 0,
   };
-  if (!query) return NextResponse.json(empty);
+  if (!query) return NextResponse.json(emptyResult);
 
   if (!VWORLD_API_KEY) {
     console.warn("[geo-search] NEXT_PUBLIC_VWORLD_API_KEY가 설정되지 않았습니다.");
-    return NextResponse.json(empty);
+    return NextResponse.json(emptyResult);
   }
 
   const params = new URLSearchParams({
@@ -112,34 +148,36 @@ export async function GET(req: NextRequest) {
     ...(bbox ? { bbox } : {}),
   });
 
-  const res = await fetch(`${getVWorldSearchUrl()}?${params.toString()}`);
-  const data = await res.json();
+  const vworldRes = await fetch(`${getVWorldSearchUrl()}?${params.toString()}`);
+  const vworldResponse: VWorldSearchResponse = await vworldRes.json();
 
-  if (data?.response?.status === "NOT_FOUND") return NextResponse.json(empty);
-  if (data?.response?.status === "ERROR") {
-    const err = data.response.error ?? {};
-    console.error("[geo-search] vworld error response:", data);
+  if (vworldResponse?.response?.status === "NOT_FOUND") {
+    return NextResponse.json(emptyResult);
+  }
+  if (vworldResponse?.response?.status === "ERROR") {
+    const vworldError = vworldResponse.response.error ?? {};
+    console.error("[geo-search] vworld error response:", vworldResponse);
     return NextResponse.json({
       items: [],
       totalCount: 0,
       page,
       totalPages: 0,
       error: {
-        code: err.code ?? "UNKNOWN",
-        text: err.text ?? "알 수 없는 오류",
+        code: vworldError.code ?? "UNKNOWN",
+        text: vworldError.text ?? "알 수 없는 오류",
       },
     } satisfies GeoSearchResponse);
   }
 
-  const kind = type === "place" ? "PLACE" : "ADDRESS";
-  const items = (data.response.result?.items ?? []).map((item: any) =>
-    normalize(item, kind),
+  const kind: GeoSearchItem["kind"] = type === "place" ? "PLACE" : "ADDRESS";
+  const items = (vworldResponse.response.result?.items ?? []).map((item) =>
+    toGeoSearchItem(item, kind),
   );
 
   return NextResponse.json({
     items,
-    totalCount: Number(data.response.record?.total ?? 0),
-    page: Number(data.response.page?.current ?? page),
-    totalPages: Number(data.response.page?.total ?? 0),
+    totalCount: Number(vworldResponse.response.record?.total ?? 0),
+    page: Number(vworldResponse.response.page?.current ?? page),
+    totalPages: Number(vworldResponse.response.page?.total ?? 0),
   } satisfies GeoSearchResponse);
 }

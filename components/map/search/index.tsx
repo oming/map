@@ -1,4 +1,3 @@
-// components/map/search/index.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -28,6 +27,20 @@ import { ResultList } from "./result-list";
 import { SearchPager } from "./search-pager";
 import { SearchError } from "./search-error";
 
+/**
+ * 검색 범위. 어떤 bbox를 API에 넘길지와 "0건이면 전국으로 되돌릴지"가 함께 결정되므로
+ * 두 값을 따로 두지 않고 하나의 상태로 관리한다.
+ */
+type SearchScope =
+  /** 범위 제한 없음 — 검색 전 초기 상태이거나, 자동 필터로 0건이라 되돌린 뒤. */
+  | { kind: "nationwide" }
+  /** 제출 시점의 지도 뷰를 자동으로 적용한 필터. 0건이면 전국으로 되돌린다. */
+  | { kind: "viewport-bias"; bbox: string }
+  /** 사용자가 "이 위치에서 검색"으로 직접 지정한 범위. 0건이어도 되돌리지 않는다. */
+  | { kind: "explicit-area"; bbox: string };
+
+const NATIONWIDE_SCOPE: SearchScope = { kind: "nationwide" };
+
 /** ReactControl이 MapLibre 컨트롤로 마운트한다 — map은 onAdd 시점에 주입되므로 항상 존재한다. */
 export function Search({ map }: { map: MaplibreMap }) {
   const isMobile = useIsMobile();
@@ -36,22 +49,14 @@ export function Search({ map }: { map: MaplibreMap }) {
   const [draftQuery, setDraftQuery] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchBbox, setSearchBbox] = useState<string | undefined>(undefined);
-  // true면 searchBbox가 "현재 위치 기준 자동 필터"임을 뜻한다(명시적 "이 위치에서
-  // 검색"과 구분) — 이 경우에만 0건일 때 자동으로 전국 검색으로 폴백한다.
-  const [biasApplied, setBiasApplied] = useState(false);
-  const [isNationwideFallback, setIsNationwideFallback] = useState(false);
+  const [scope, setScope] = useState<SearchScope>(NATIONWIDE_SCOPE);
+  const [showNationwideNotice, setShowNationwideNotice] = useState(false);
   const [activeTab, setActiveTab] = useState<"place" | "address">("place");
 
   const [placePage, setPlacePage] = useState(1);
   const [addressPage, setAddressPage] = useState(1);
 
-  // 검색어가 바뀌면(새 검색 제출/초기화) 페이지네이션을 리셋한다.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPlacePage(1);
-    setAddressPage(1);
-  }, [searchQuery]);
+  const searchBbox = scope.kind === "nationwide" ? undefined : scope.bbox;
 
   const places = useGeoSearch({
     query: searchQuery,
@@ -68,21 +73,19 @@ export function Search({ map }: { map: MaplibreMap }) {
 
   const totalCount = places.totalCount + addresses.totalCount;
 
-  // 현재 위치 기준 자동 필터(biasApplied)로 검색했는데 결과가 0건이면,
-  // bbox 없이 전국 재검색으로 자동 폴백한다. "이 위치에서 검색"(명시적 스코프)
-  // 경로는 biasApplied가 false이므로 대상에서 제외된다.
+  // 제출 시 자동으로 적용한 뷰 기준 필터로 0건이면 전국 재검색으로 되돌린다.
+  // 응답이 도착해야 판정할 수 있어 effect로 둔다.
   useEffect(() => {
-    if (!searchQuery || !biasApplied) return;
+    if (!searchQuery || scope.kind !== "viewport-bias") return;
     if (places.isLoading || addresses.isLoading) return;
     if (places.error || addresses.error) return;
     if (totalCount > 0) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSearchBbox(undefined);
-    setBiasApplied(false);
-    setIsNationwideFallback(true);
+    setScope(NATIONWIDE_SCOPE);
+    setShowNationwideNotice(true);
   }, [
     searchQuery,
-    biasApplied,
+    scope.kind,
     places.isLoading,
     addresses.isLoading,
     places.error,
@@ -102,10 +105,8 @@ export function Search({ map }: { map: MaplibreMap }) {
     placesItems: places.items,
     addressesItems: addresses.items,
     searchQuery,
-    onBBoxChange: (bbox) => {
-      setSearchBbox(bbox);
-      setBiasApplied(false);
-    },
+    onBBoxChange: (bbox) =>
+      setScope(bbox ? { kind: "explicit-area", bbox } : NATIONWIDE_SCOPE),
   });
 
   const handleItemSelect = (
@@ -117,15 +118,24 @@ export function Search({ map }: { map: MaplibreMap }) {
   };
 
   const hasResults = places.items.length > 0 || addresses.items.length > 0;
-  const activeData = activeTab === "place" ? places : addresses;
+  const activeTabResult = activeTab === "place" ? places : addresses;
+
+  // 새 검색어로 넘어가면 두 탭 모두 첫 페이지부터 다시 본다. searchQuery가 바뀌는
+  // 곳이 아래 두 핸들러뿐이라 effect 없이 여기서 함께 리셋한다.
+  const resetPagination = () => {
+    setPlacePage(1);
+    setAddressPage(1);
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const q = draftQuery.trim();
-    setSearchQuery(q);
-    setSearchBbox(viewportBBoxWithMinRadius(map.getBounds()));
-    setBiasApplied(true);
-    setIsNationwideFallback(false);
+    setSearchQuery(draftQuery.trim());
+    setScope({
+      kind: "viewport-bias",
+      bbox: viewportBBoxWithMinRadius(map.getBounds()),
+    });
+    setShowNationwideNotice(false);
+    resetPagination();
     setOpen(true);
     clearSelection();
   };
@@ -133,20 +143,20 @@ export function Search({ map }: { map: MaplibreMap }) {
   const handleClear = () => {
     setDraftQuery("");
     setSearchQuery("");
-    setSearchBbox(undefined);
-    setBiasApplied(false);
-    setIsNationwideFallback(false);
+    setScope(NATIONWIDE_SCOPE);
+    setShowNationwideNotice(false);
+    resetPagination();
     setOpen(false);
     clearSelection();
   };
 
-  // network error 포함: activeData.error는 API 응답 에러 + SWR 네트워크 에러 모두 포함
-  const error: Error | undefined = activeData.error ?? undefined;
+  // network error 포함: activeTabResult.error는 API 응답 에러 + SWR 네트워크 에러 모두 포함
+  const error: Error | undefined = activeTabResult.error ?? undefined;
 
   const resultsBody = searchQuery && (
     <>
       <SearchError
-        activeTabLoading={activeData.isLoading}
+        activeTabLoading={activeTabResult.isLoading}
         hasResults={hasResults}
         error={error}
       />
@@ -174,7 +184,7 @@ export function Search({ map }: { map: MaplibreMap }) {
             )}
           </div>
 
-          {isNationwideFallback && (
+          {showNationwideNotice && (
             <div className="border-b px-3 py-1.5 text-xs text-muted-foreground">
               현재 위치 근처에 결과가 없어 전국 검색 결과를 표시합니다.
             </div>

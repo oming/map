@@ -6,6 +6,7 @@ import type {
 } from "maplibre-gl";
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
 import { registerPinImage, STANDARD_PIN_WIDTH } from "@/lib/map/pin-image";
+import { MAX_SEARCH_RESULT_SIZE } from "@/lib/search-config";
 
 export const RESULTS_SOURCE_ID = "search-results";
 export const RESULTS_ICON_LAYER_ID = "search-results-icon";
@@ -34,9 +35,11 @@ export function indexToLabel(index: number): string {
   return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
 }
 
-// 핀 이미지는 라벨마다 하나씩 미리 만들어 등록해둔다. 한 페이지에 30건을 넘게 표시하지
-// 않으므로 그만큼만 준비한다.
-const PIN_LABELS = Array.from({ length: 30 }, (_, i) => indexToLabel(i));
+// 핀 이미지는 라벨마다 하나씩 미리 만들어 등록해둔다 — API가 한 페이지에 돌려줄 수 있는
+// 최대 개수(lib/search-config.ts)만큼이면 충분하고, 그 이상은 애초에 오지 않는다.
+const PIN_LABELS = Array.from({ length: MAX_SEARCH_RESULT_SIZE }, (_, i) =>
+  indexToLabel(i),
+);
 
 /** 이 레이어들이 실제로 쓰는 GeoJSON properties. MapLibre가 돌려주는 feature.properties는
  *  타입이 없으므로, 읽는 쪽에서는 이 타입으로 한 번만 단언한다. */

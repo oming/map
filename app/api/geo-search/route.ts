@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MAX_SEARCH_RESULT_SIZE } from "@/lib/search-config";
 import {
   VWORLD_API_KEY,
   VWORLD_DOMAIN,
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
   const bbox = searchParams.get("bbox") ?? undefined;
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const size = Math.min(
-    50,
+    MAX_SEARCH_RESULT_SIZE,
     Math.max(1, Number(searchParams.get("size") ?? 10)),
   );
 

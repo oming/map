@@ -74,32 +74,58 @@ export function BasemapSwitcher({
       >
         <Layers className="size-4 shrink-0" />
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-56 p-1.5">
-        {BASEMAP_IDS.map((id) => {
-          const def = BASEMAPS[id];
-          const active = id === current;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => handleSelect(id)}
-              aria-label={def.label}
-              aria-pressed={active}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
-                active && "bg-muted",
-              )}
-            >
-              <span className="flex-1 min-w-0">
-                <span className="block font-medium">{def.label}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {def.description}
+      <PopoverContent align="end" className="w-auto p-2">
+        <div className="grid grid-cols-3 gap-2">
+          {BASEMAP_IDS.map((id) => {
+            const def = BASEMAPS[id];
+            const active = id === current;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleSelect(id)}
+                title={def.description}
+                aria-label={`${def.label} — ${def.description}`}
+                aria-pressed={active}
+                className="group flex w-18 flex-col gap-1 text-center"
+              >
+                <span
+                  className={cn(
+                    "relative block overflow-hidden rounded-md ring-1 ring-border transition group-hover:ring-foreground/30",
+                    active && "ring-2 ring-primary group-hover:ring-primary",
+                  )}
+                >
+                  {/* 캡처 이미지는 144x144 정사각 — aspect-square로 비율을 고정한다.
+                      이미 표시 크기에 맞춰 만든 16KB 고정 자산이라 next/image의
+                      최적화가 얻는 게 없고 Vercel 이미지 사용량만 발생한다. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={def.thumbnail}
+                    alt=""
+                    width={144}
+                    height={144}
+                    className="aspect-square w-full object-cover"
+                  />
+                  {active && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-primary/25">
+                      <Check className="size-5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]" />
+                    </span>
+                  )}
                 </span>
-              </span>
-              {active && <Check className="size-4 shrink-0" />}
-            </button>
-          );
-        })}
+                <span
+                  className={cn(
+                    "block truncate text-xs",
+                    active
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {def.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </PopoverContent>
     </Popover>
   );

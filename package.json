@@ -10,11 +10,12 @@
     "lint": "eslint",
     "build:style-builder": "tsx tools/style-builder/build.ts",
     "build:sprite-builder": "tsx tools/sprite-builder/build.ts",
+    "build:osm-style-builder": "tsx tools/osm-style-builder/build.ts",
     "build:glyph-builder": "echo 'glyph-builder is not implemented yet. See tools/glyph-builder/README.md'",
     "build:data-builder": "tsx tools/data-builder/run.ts",
     "build:data-builder:restaurant": "tsx tools/data-builder/build-restaurant.ts",
     "build:data-builder:festival": "tsx tools/data-builder/build-festival.ts",
-    "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder"
+    "build:tools": "pnpm run build:sprite-builder && pnpm run build:style-builder && pnpm run build:osm-style-builder"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

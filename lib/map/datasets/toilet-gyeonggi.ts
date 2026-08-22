@@ -1,5 +1,19 @@
+import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
 import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
+
+/** public/data/toilet-gyeonggi.geojson의 feature properties
+ *  (tools/data-builder/recipes/toilet-gyeonggi.ts). 원본에 값이 없는 openHours/owner/phone은
+ *  키가 빠지는 게 아니라 빈 문자열로 오고, resolveDetailFields가 빈 값을 알아서 감춘다. */
+interface ToiletGyeonggiProperties {
+  name: string;
+  address: string;
+  category: string;
+  openHours: string;
+  owner: string;
+  phone: string;
+  hasDiaperTable: boolean;
+}
 
 // lucide-react "toilet" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
 // dist/esm/icons/toilet.mjs. toilet.ts(수원)와 동일 아이콘, 색만 다르게 구분한다.
@@ -32,7 +46,7 @@ export const toiletGyeonggiLayer: DataLayerDef = {
       },
     },
     popupFields: ["address", "category", "openHours"],
-  },
+  } satisfies DetailFieldsSchemaFor<ToiletGyeonggiProperties>,
   attribution: {
     name: "경기도 공중화장실 표준데이터",
     url: "https://www.data.go.kr/",

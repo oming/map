@@ -1,5 +1,20 @@
+import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
 import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
+
+/** public/data/toilet-suwon.geojson의 feature properties (tools/data-builder/recipes/toilet-suwon.ts).
+ *  값이 없는 필드는 키가 빠지는 게 아니라 빈 문자열로 온다. */
+interface ToiletSuwonProperties {
+  id: string;
+  name: string;
+  address: string;
+  category: string;
+  openHours: string;
+  owner: string;
+  hasDiaperTable: boolean;
+  /** 도로명/지번 중 무엇으로 지오코딩했는지 — 데이터 점검용이라 화면에는 숨긴다. */
+  geocodeType: string;
+}
 
 // lucide-react "toilet" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
 // dist/esm/icons/toilet.mjs. wifi.ts와 같은 이유로 문자열만 갖고 있는다.
@@ -32,7 +47,7 @@ export const toiletSuwonLayer: DataLayerDef = {
       },
     },
     popupFields: ["address", "category", "openHours"],
-  },
+  } satisfies DetailFieldsSchemaFor<ToiletSuwonProperties>,
   attribution: {
     name: "수원시 공중화장실 정보",
     url: "https://www.data.go.kr/",

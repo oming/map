@@ -18,6 +18,8 @@ export interface DetailFieldOverride {
 
 export interface DetailLinkSchema {
   label: string;
+  /** DATA_LAYERS는 서로 다른 데이터셋이 섞인 배열이라 properties가 넓은 타입으로 들어온다.
+   *  어느 데이터셋의 feature인지는 호출 지점이 보장하므로, 각 href 안에서 한 번만 좁힌다. */
   href: (properties: Record<string, unknown>) => string;
 }
 
@@ -34,6 +36,21 @@ export interface DetailFieldsSchema {
    *  몇 개를 기본값으로 쓴다(POPUP_FIELD_LIMIT, detail-popup.tsx). */
   popupFields?: string[];
 }
+
+/**
+ * 데이터셋의 GeoJSON properties 타입에 맞춰 스키마의 키를 검사한다.
+ *
+ * 키 오타는 전부 조용히 무시된다 — override가 안 걸려 자동 라벨이 나오거나, 숨기려던
+ * 내부 필드가 그대로 노출된다. 그래서 각 데이터셋 정의에서
+ * `satisfies DetailFieldsSchemaFor<XxxProperties>`로 못을 박는다.
+ */
+export type DetailFieldsSchemaFor<P> = {
+  titleKey: keyof P & string;
+  overrides?: { [K in keyof P & string]?: DetailFieldOverride };
+  hiddenKeys?: (keyof P & string)[];
+  links?: DetailLinkSchema[];
+  popupFields?: (keyof P & string)[];
+};
 
 export interface ResolvedDetailField {
   key: string;
@@ -118,9 +135,9 @@ export function resolveDetailLinks(
 }
 
 /**
- * 데이터 레이어 상세 UI의 기본 렌더러. 대부분의 데이터셋(Wi-Fi, 화장실 등)은
- * 이 컴포넌트만으로 충분하고, 특수한 레이아웃이 필요한 경우에만
- * DataLayerDef.detail.custom(lazy 컴포넌트)으로 대체한다.
+ * 데이터 레이어 상세 UI의 전체 필드 렌더러 — DetailSheet가 사용한다.
+ * DetailPopup은 같은 resolve* 함수를 쓰되 일부 필드만 뽑아 좁은 폭에 맞춘 자체
+ * 레이아웃으로 그린다.
  */
 export function DetailFields({
   properties,

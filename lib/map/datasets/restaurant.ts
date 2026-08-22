@@ -1,5 +1,17 @@
+import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
 import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
+
+/** public/data/restaurant-suwon.geojson의 feature properties
+ *  (tools/data-builder/recipes/restaurant-suwon.ts). id는 원본 표의 순위라 숫자다. */
+interface RestaurantProperties {
+  id: number;
+  name: string;
+  address: string;
+  category: string;
+  phone: string;
+  naverUrl: string;
+}
 
 // lucide-react "utensils" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
 // dist/esm/icons/utensils.mjs. wifi.ts/toilet.ts와 같은 이유로 문자열만 갖고 있는다.
@@ -29,11 +41,19 @@ export const restaurantSuwonLayer: DataLayerDef = {
       category: { label: "주요 메뉴" },
     },
     links: [
-      { label: "네이버 지도", href: (p) => p.naverUrl as string },
-      { label: "전화", href: (p) => `tel:${p.phone as string}` },
+      {
+        label: "네이버 지도",
+        href: (properties) =>
+          (properties as unknown as RestaurantProperties).naverUrl,
+      },
+      {
+        label: "전화",
+        href: (properties) =>
+          `tel:${(properties as unknown as RestaurantProperties).phone}`,
+      },
     ],
     popupFields: ["address", "category"],
-  },
+  } satisfies DetailFieldsSchemaFor<RestaurantProperties>,
   attribution: {
     name: "수원시 맛집 100선",
   },

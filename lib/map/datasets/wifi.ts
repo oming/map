@@ -1,5 +1,17 @@
+import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
 import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
+
+/** public/data/wifi-suwon.geojson의 feature properties (tools/data-builder/recipes/wifi-suwon.ts).
+ *  값이 없는 필드는 키가 빠지는 게 아니라 빈 문자열로 온다. */
+interface WifiProperties {
+  id: string;
+  name: string;
+  address: string;
+  ssid: string;
+  provider: string;
+  category: string;
+}
 
 // lucide-react "wifi" 아이콘 (viewBox 24x24)에서 추출한 path — node_modules/lucide-react
 // dist/esm/icons/wifi.mjs. 런타임에 lucide-react를 불러오지 않고 Canvas 2D로 직접
@@ -31,7 +43,7 @@ export const wifiSuwonLayer: DataLayerDef = {
       category: { label: "구분" },
     },
     popupFields: ["address", "ssid"],
-  },
+  } satisfies DetailFieldsSchemaFor<WifiProperties>,
   attribution: {
     name: "수원시 무료 와이파이 정보",
     url: "https://www.data.go.kr/",

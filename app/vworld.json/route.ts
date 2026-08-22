@@ -95,7 +95,6 @@ export async function GET(request: NextRequest) {
     status: 200,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "public, max-age=3600",
     },
   });
 }

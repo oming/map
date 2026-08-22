@@ -40,7 +40,6 @@ export async function GET() {
     status: 200,
     headers: {
       "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "public, max-age=3600",
     },
   });
 }

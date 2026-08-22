@@ -19,14 +19,15 @@ import {
 
 import {
   isVWorldVectorTileUrl,
-  VWORLD_API_KEY,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
 import { POI_LAYER_IDS } from "@/lib/vworld/poi-layers";
-import { migrateLegacyHash } from "@/lib/map/hash-state";
+import { BASEMAPS, resolveBasemapId } from "@/lib/map/basemaps";
+import { migrateLegacyHash, readHashParam } from "@/lib/map/hash-state";
 import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
 
 import { Search } from "./search";
+import { BasemapSwitcher } from "./basemap/switcher";
 import { ReactControl } from "./react-control";
 import { MapContext } from "./map-context";
 
@@ -94,9 +95,11 @@ export default function VWorldMap({
     // 해제 타이밍을 잘못 잡으면 아직 살아 있는 타일 요청이 깨지기 때문이다.
     registerReverseProtocol();
 
+    const initialBasemapId = resolveBasemapId(readHashParam("base"));
+
     const map = new Map({
       container: containerRef.current,
-      style: `/vworld.json?key=${VWORLD_API_KEY}`,
+      style: BASEMAPS[initialBasemapId].styleUrl,
       hash: "map",
       center: INITIAL_VIEW_CENTER,
       zoom: INITIAL_VIEW_ZOOM,
@@ -115,6 +118,11 @@ export default function VWorldMap({
       return undefined;
     });
 
+    // NavigationControl보다 먼저 등록해 top-right 컨트롤 스택 최상단에 오게 한다.
+    map.addControl(
+      new ReactControl(BasemapSwitcher, { initialId: initialBasemapId }),
+      "top-right",
+    );
     map.addControl(new NavigationControl(), "top-right");
     map.addControl(
       new GeolocateControl({
@@ -153,6 +161,12 @@ export default function VWorldMap({
       );
     }
 
+    // setStyle(베이스맵 전환) 시작 시점. 'styledataloading'은 Style.loadURL/loadJSON
+    // 진입에서만 발화하고 addLayer/addSource로는 발화하지 않는다. 여기서 false로 내려야
+    // useDataLayers가 옛 스타일이 살아 있는 동안 dl-* 레이어를 정리하고, 이어지는
+    // 'style.load'에서 새 스타일에 다시 붙인다(lib/map/layer-lifecycle.ts의 try/catch가
+    // 전환 도중 예외를 방어하지만, 이 순서 덕분에 teardown이 항상 유효한 스타일 위에서 일어난다).
+    map.on("styledataloading", () => setStyleReady(false));
     map.on("style.load", () => setStyleReady(true));
     map.on("remove", () => setStyleReady(false));
 

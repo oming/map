@@ -69,6 +69,20 @@ POI 아이콘 스프라이트를 생성합니다.
 
 ---
 
+### [osm-style-builder/](./osm-style-builder/) — OSM Shortbread 스타일 빌더 ✅
+
+OpenStreetMap Shortbread 벡터 타일 스키마용 MapLibre 스타일을 VersaTiles `colorful`에서 받아 이 프로젝트가 쓸 수 있게 가공합니다(V-World와 무관한 독립 파이프라인).
+
+**주요 기능**:
+- VersaTiles colorful 스타일 다운로드
+- 폰트 매핑 (`noto_sans_*` → 나눔고딕)
+- `glyphs`/`sprite` 최상위 키 제거 — 런타임 라우트(`app/osm.json`)가 배포 도메인 기준으로 재주입
+- 스프라이트 4종(@1x/@2x) 다운로드
+
+**출력**: `data/osm-style.json`, `public/sprite-osm/basics/*`
+
+---
+
 ### [glyph-builder/](./glyph-builder/) — 폰트 빌더 🔧 수동 프로세스
 
 MapLibre용 글리프(폰트) 파일을 생성합니다. **자동화된 스크립트가 아니라, 수동으로 외부 웹사이트(maplibre.org/font-maker)를 사용하는 워크플로우**입니다 — 자세한 절차는 [glyph-builder/README.md](./glyph-builder/README.md) 참고.
@@ -96,9 +110,10 @@ MapLibre용 글리프(폰트) 파일을 생성합니다. **자동화된 스크�
 프로젝트 루트에서 다음 명령어로 실행할 수 있습니다:
 
 ```bash
-pnpm build:style-builder   # POI 스타일 변환만 실행 (tsx tools/style-builder/build.ts)
-pnpm build:sprite-builder  # 스프라이트 생성만 실행 (tsx tools/sprite-builder/build.ts)
-pnpm build:tools           # sprite-builder → style-builder 순서로 모두 실행
+pnpm build:style-builder      # POI 스타일 변환만 실행 (tsx tools/style-builder/build.ts)
+pnpm build:sprite-builder     # 스프라이트 생성만 실행 (tsx tools/sprite-builder/build.ts)
+pnpm build:osm-style-builder  # OSM Shortbread 스타일 변환만 실행 (tsx tools/osm-style-builder/build.ts)
+pnpm build:tools              # sprite-builder → style-builder → osm-style-builder 순서로 모두 실행
 ```
 
 > `build:glyph-builder`는 현재 미구현 상태입니다 (glyph-builder는 수동 프로세스이므로 자동화 스크립트가 없습니다).
@@ -111,4 +126,5 @@ pnpm build:tools           # sprite-builder → style-builder 순서로 모두 �
 |------|------|------|
 | style-builder | ✅ 완료 | V-World POI 스타일 변환, TypeScript 파이프라인 |
 | sprite-builder | ✅ 완료 | V-World POI 아이콘 스프라이트 생성, TypeScript 파이프라인 |
+| osm-style-builder | ✅ 완료 | OSM Shortbread(VersaTiles) 스타일 변환, TypeScript 파이프라인 |
 | glyph-builder | 🔧 수동 프로세스 | 자동화 스크립트 없음, 외부 웹사이트 기반 수동 워크플로우 |

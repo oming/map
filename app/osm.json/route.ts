@@ -5,10 +5,10 @@ import { SLOT_OVERLAY_LAYER } from "@/lib/map/slot-overlay";
 import { POI_LAYERS } from "@/lib/vworld/poi-layers";
 import {
   getVWorldVectorTileUrl,
-  SITE_URL,
   VWORLD_VECTOR_MAX_ZOOM,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
+import { SITE_URL } from "@/lib/site";
 
 export async function GET() {
   const style: StyleSpecification = {

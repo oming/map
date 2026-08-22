@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 
 // 공지 내용을 바꾸면 이 값을 올린다. "다시 보지 않기"를 누른 사용자에게도
 // 새 버전이 자동으로 다시 노출된다.
-const NOTICE_VERSION = "v1";
+const NOTICE_VERSION = "v2";
 const NOTICE_DISMISSED_KEY = "map-qwer-notice-dismissed";
 
 export function ServiceNotice() {
@@ -45,11 +45,11 @@ export function ServiceNotice() {
         <AlertDialogHeader>
           <AlertDialogTitle>map.qwer.dev 안내</AlertDialogTitle>
           <AlertDialogDescription>
-            이 지도는 대한민국 브이월드(V-World) OpenAPI를 MapLibre GL JS로
-            볼 수 있게 만든 서비스입니다. <br />
-            브이월드는 대한민국 정부가 운영하는 공공 데이터이므로, 정부의
-            정책이나 제도 변경에 따라 서비스 내용이 바뀌거나 일시 중단될 수
-            있습니다.
+            표로만 공개되던 대한민국 공공정보를 지도 위에 올려 한눈에 볼 수
+            있게 만든 서비스입니다. <br />
+            지도 배경과 장소 정보는 대한민국 정부가 운영하는
+            브이월드(V-World)를 사용하므로, 정부의 정책이나 제도 변경에 따라
+            서비스 내용이 바뀌거나 일시 중단될 수 있습니다.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="flex flex-col gap-3 text-sm">

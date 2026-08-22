@@ -5,12 +5,12 @@ import {
   getVWorldRasterTileUrl,
   getVWorldVectorBackgroundUrl,
   getVWorldVectorTileUrl,
-  SITE_URL,
   VWORLD_RASTER_MAX_ZOOM,
   VWORLD_RASTER_MIN_ZOOM,
   VWORLD_VECTOR_MAX_ZOOM,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
+import { SITE_URL } from "@/lib/site";
 import { SLOT_OVERLAY_LAYER } from "@/lib/map/slot-overlay";
 
 const VWORLD_ATTRIBUTION = `<a href="https://www.vworld.kr/" target="_blank">&copy; V-World</a>`;

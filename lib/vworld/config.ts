@@ -1,9 +1,8 @@
+import { SITE_URL } from "@/lib/site";
+
 const VWORLD_API_BASE = "https://api.vworld.kr";
 
 export const VWORLD_API_KEY = process.env.NEXT_PUBLIC_VWORLD_API_KEY ?? "";
-
-/** 이 앱이 배포된 공개 베이스 URL (예: https://map.qwer.dev). 로컬에서는 보통 http://localhost:3000. */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
 
 /** V-World 서비스 등록 도메인 — SITE_URL의 호스트명으로 자동 유도(별도 env 불필요) */
 export const VWORLD_DOMAIN = SITE_URL ? new URL(SITE_URL).hostname : "";

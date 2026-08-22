@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Python virtualenv (tools/)
 .venv/
+
+# 데이터 원본 다운로드 사본 — 빌더가 실제로 읽는 입력은 tools/data-builder/input/
+/temp_data/

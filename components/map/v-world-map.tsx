@@ -134,7 +134,7 @@ export default function VWorldMap({
     map.addControl(
       new ScaleControl({
         maxWidth: 80,
-        unit: "imperial",
+        unit: "metric",
       }),
     );
 

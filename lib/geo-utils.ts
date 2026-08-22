@@ -1,7 +1,6 @@
-// lib/geo-utils.ts
 import type { LngLatBounds } from "maplibre-gl";
 
-export const MIN_SEARCH_RADIUS_METERS = 1500;
+const MIN_SEARCH_RADIUS_METERS = 1500;
 
 // 뷰포트 bbox와 "뷰포트 중심 기준 최소반경 bbox"의 합집합을 반환한다.
 // 뷰포트가 이미 넓으면(줌아웃) 그대로 쓰고, 좁으면(줌인) 최소반경만큼 확장해
@@ -24,8 +23,4 @@ export function viewportBBoxWithMinRadius(
   const maxLat = Math.max(ne.lat, center.lat + latDelta);
 
   return `${minLng},${minLat},${maxLng},${maxLat}`;
-}
-
-export function indexToLabel(index: number): string {
-  return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
 }

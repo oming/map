@@ -1,8 +1,7 @@
-// components/map/search/result-list.tsx
 "use client";
 
 import type { GeoSearchItem } from "@/app/api/geo-search/route";
-import { indexToLabel } from "@/lib/geo-utils";
+import { indexToLabel } from "@/lib/map/search-layers";
 import { cn } from "@/lib/utils";
 
 interface ResultListProps {

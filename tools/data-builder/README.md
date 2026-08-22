@@ -53,16 +53,12 @@ pnpm build:data-builder:festival
   → 좌표 5자리 절삭(~1.1m) + 문자열 NFC 정규화
   → (옵션) dedup: 반올림된 좌표가 같은 행들 중 완전 중복 행만 제거(병합은 하지 않음)
   → mapRow로 최종 속성 생성
-  → public/data/<id>.<콘텐츠해시>.geojson + cache/<id>.stats.json 저장
+  → public/data/<id>.geojson + cache/<id>.stats.json 저장
 ```
 
-`public/data/:path*`는 `next.config.ts`에서 1년 immutable 캐시를 쓰기 때문에, 파일명이
-고정돼 있으면 재빌드로 데이터가 바뀌어도 이미 접속했던 브라우저는 옛 데이터를 계속 보게
-됩니다. 그래서 출력 파일명에 콘텐츠 해시를 넣습니다(`lib/output.ts`의
-`writeDatasetGeojson`) — 내용이 바뀌면 파일명도 바뀌고, `lib/map/datasets/data-manifest.json`의
-해당 id 항목이 새 해시로 갱신됩니다. 데이터셋 정의(`lib/map/datasets/<id>.ts`)는 이 URL을
-직접 쓰지 않고 `dataUrl(id)`(`lib/map/datasets/data-url.ts`)로 참조하므로, 별도 코드 수정 없이
-재빌드 결과가 자동으로 반영됩니다. 이전 해시 파일은 빌드할 때마다 자동으로 정리됩니다.
+출력 파일명은 `public/data/<id>.geojson`으로 고정입니다(`lib/output.ts`의
+`writeDatasetGeojson`). 데이터셋 정의(`lib/map/datasets/<id>.ts`)가 이 경로를 그대로
+`url`에 적으므로, 재빌드하면 같은 파일이 덮어써지고 바로 반영됩니다.
 
 같은 좌표에 여러 지점이 남아도(건물 단위 좌표, 우연히 같은 좌표로 반올림된 경우 등)
 병합하지 않는다 — 개별 feature 그대로 두고, 지도 위에서 겹친 지점은 spiderfy로 펼쳐서

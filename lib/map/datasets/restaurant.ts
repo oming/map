@@ -1,5 +1,4 @@
 import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
-import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
 
 /** public/data/restaurant-suwon.geojson의 feature properties
@@ -28,7 +27,7 @@ export const restaurantSuwonLayer: DataLayerDef = {
   icon: { paths: UTENSILS_ICON_PATHS },
   source: {
     kind: "geojson",
-    url: dataUrl("restaurant-suwon"),
+    url: "/data/restaurant-suwon.geojson",
     cluster: { radius: 50, maxZoom: 17 },
   },
   detail: {

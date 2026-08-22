@@ -1,5 +1,4 @@
 import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
-import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
 
 /** public/data/festival.geojson의 feature properties (tools/data-builder/build-festival.ts).
@@ -44,7 +43,7 @@ export const festivalLayer: DataLayerDef = {
   icon: { paths: TICKET_ICON_PATHS },
   source: {
     kind: "geojson",
-    url: dataUrl("festival"),
+    url: "/data/festival.geojson",
     cluster: { radius: 50, maxZoom: 17 },
   },
   detail: {

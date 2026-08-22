@@ -106,15 +106,15 @@ tools/data-builder   ─┘  public/sprite/*        (raster + POI + 앵커)     
 
 | 단계 | 언제 실행되나 | 무엇을 만드나 |
 |---|---|---|
-| ① 빌드 | 개발자가 `pnpm build:tools` / `pnpm build:data-builder`를 **직접** 실행할 때만 (`pnpm build`에 포함되지 않음) | `data/poi-layers.json`(POI 심볼 레이어 사양 ~509개), `public/sprite/*`, `public/data/<id>.<hash>.geojson` |
-| ② 요청 | `/vworld.json?key=...` 요청마다 (`Cache-Control: public, max-age=3600`) | 배경 raster 레이어 + ①의 POI 레이어 전체 + `slot-overlay` 앵커를 담은 MapLibre 스타일 객체 |
+| ① 빌드 | 개발자가 `pnpm build:tools` / `pnpm build:data-builder`를 **직접** 실행할 때만 (`pnpm build`에 포함되지 않음) | `data/poi-layers.json`(POI 심볼 레이어 사양 ~509개), `public/sprite/*`, `public/data/<id>.geojson` |
+| ② 요청 | `/vworld.json?key=...` 요청마다 | 배경 raster 레이어 + ①의 POI 레이어 전체 + `slot-overlay` 앵커를 담은 MapLibre 스타일 객체 |
 | ③ 런타임 | 지도 `style.load` 이후, 그리고 사용자가 검색하거나 레이어를 토글할 때마다 | 검색 결과/선택 핀 레이어(`search-*`), 활성 데이터셋 레이어(`dl-*`) |
 
 ### ① 빌드 시점 — 정적 산출물
 
 - `pnpm build:tools` = `sprite-builder` → `style-builder` 순서. V-World OpenLayers 스타일(`vectorStylePoi.js`)을 내려받아 아이콘 스프라이트를 만들고, 그 `sprite.json`을 참조해 POI 스타일을 MapLibre symbol 레이어 배열(`data/poi-layers.json`)로 변환합니다. 상세는 [tools/README.md](./tools/README.md).
-- `pnpm build:data-builder`는 공공데이터 원본(CSV/API)을 `public/data/<id>.<hash>.geojson`으로 변환하고 `lib/map/datasets/data-manifest.json`에 콘텐츠 해시를 기록합니다. `next.config.ts`가 `/data/*`를 `immutable`(1년)로 캐시하므로, URL은 반드시 `dataUrl(id)`(`lib/map/datasets/data-url.ts`)로 해시가 붙은 경로를 생성해야 재빌드 결과가 반영됩니다.
-- 두 빌드 모두 자동 실행되지 않습니다. `data/poi-layers.json`이 없으면 `/vworld.json`은 POI 없는 반쪽 스타일을 반환하고, 매니페스트에 항목이 없으면 `dataUrl()`이 throw합니다.
+- `pnpm build:data-builder`는 공공데이터 원본(CSV/API)을 `public/data/<id>.geojson`으로 변환합니다. 데이터셋 정의(`lib/map/datasets/<id>.ts`)가 이 경로를 `url`에 그대로 적으므로, 재빌드하면 같은 파일이 덮어써지고 바로 반영됩니다.
+- 두 빌드 모두 자동 실행되지 않습니다. `data/poi-layers.json`이 없으면 `/vworld.json`은 POI 없는 반쪽 스타일을 반환하고, `public/data/<id>.geojson`이 없으면 해당 데이터 레이어만 빈 채로 뜹니다.
 
 ### ② 요청 시점 — 스타일 JSON 조립
 

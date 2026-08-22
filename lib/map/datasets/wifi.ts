@@ -1,5 +1,4 @@
 import type { DetailFieldsSchemaFor } from "@/components/map/data/detail-fields";
-import { dataUrl } from "./data-url";
 import type { DataLayerDef } from "./types";
 
 /** public/data/wifi-suwon.geojson의 feature properties (tools/data-builder/recipes/wifi-suwon.ts).
@@ -30,7 +29,7 @@ export const wifiSuwonLayer: DataLayerDef = {
   icon: { paths: WIFI_ICON_PATHS },
   source: {
     kind: "geojson",
-    url: dataUrl("wifi-suwon"),
+    url: "/data/wifi-suwon.geojson",
     cluster: { radius: 50, maxZoom: 17 },
   },
   detail: {

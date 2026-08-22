@@ -6,11 +6,12 @@ export interface ClusterSpec {
   maxZoom?: number;
 }
 
-export type SourceSpec =
-  | { kind: "geojson"; url: string; cluster?: ClusterSpec }
-  // 확장 슬롯 — Phase 4 이후. 엔진에서 아직 구현하지 않았다.
-  | { kind: "pmtiles"; url: string; sourceLayer: string }
-  | { kind: "api"; endpoint: string; bbox: boolean };
+/** 모든 데이터셋은 tools/data-builder가 만든 정적 GeoJSON 파일을 소스로 쓴다. */
+export interface SourceSpec {
+  kind: "geojson";
+  url: string;
+  cluster?: ClusterSpec;
+}
 
 export interface DataLayerAttribution {
   name: string;

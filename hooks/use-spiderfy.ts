@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Marker, type Map as MaplibreMap, type MapMouseEvent } from "maplibre-gl";
 import { computeLegLngLats } from "@/lib/map/spiderfy";
 import {
+  watchOutsideClick,
+  type OutsideClickWatcher,
+} from "@/lib/map/outside-click";
+import {
   createPinElement,
   SPIDER_DOT_GLYPH_CENTER,
   SPIDER_DOT_PATH,
@@ -63,12 +67,9 @@ export function useSpiderfy(map: MaplibreMap | null) {
   const originStateRef = useRef<{ sourceId: string; ids: (string | number)[] } | null>(
     null,
   );
-  // click-router.ts와 별개로 지도 자체의 "click"을 구독해 바깥 클릭 시 닫는다. 등록
-  // 순서에 의존하지 않기 위해, spiderfy를 열거나 토글닫기 한 클릭은 이 ref로 표시해두고
-  // setTimeout(0)으로 한 tick 늦게 확인한다(detail-popup.tsx의 root.unmount 지연과 같은
-  // 관용구) — MapLibre의 Evented.fire()는 같은 tick의 모든 리스너에 동일한 이벤트 객체
-  // 참조를 넘기므로 이 비교는 리스너 등록 순서와 무관하게 항상 정확하다.
-  const handledEventRef = useRef<MapMouseEvent | null>(null);
+  // 바깥 클릭 감지는 아래 effect에서 만들고, 열기/토글닫기 클릭을 표시하는
+  // markEventHandled는 훅 밖으로 나가므로 ref로 이어준다(lib/map/outside-click.ts).
+  const outsideClickRef = useRef<OutsideClickWatcher | null>(null);
 
   // 클릭한 leg만 확대·그림자로 강조하고 나머지는 옅게, 연결선도 클릭한 leg만
   // 굵고 진하게 바꾼다. index가 null이면 전부 기본 상태로 되돌린다.
@@ -244,24 +245,22 @@ export function useSpiderfy(map: MaplibreMap | null) {
   );
 
   const markEventHandled = useCallback((event: MapMouseEvent) => {
-    handledEventRef.current = event;
+    outsideClickRef.current?.markHandled(event);
   }, []);
 
   const getCurrentKey = useCallback(() => keyRef.current, []);
 
   useEffect(() => {
     if (!map) return;
-    const onAnyClick = (e: MapMouseEvent) => {
-      setTimeout(() => {
-        if (handledEventRef.current === e) return;
-        close();
-      }, 0);
-    };
+    const watcher = watchOutsideClick(map, close);
+    outsideClickRef.current = watcher;
+    // 패닝/줌이 시작되면 즉시 닫는다 — leg 위치를 열 때 한 번만 계산하므로
+    // 지도가 움직이면 좌표가 어긋난다(lib/map/spiderfy.ts).
     const onMoveStart = () => close();
-    map.on("click", onAnyClick);
     map.on("movestart", onMoveStart);
     return () => {
-      map.off("click", onAnyClick);
+      watcher.dispose();
+      outsideClickRef.current = null;
       map.off("movestart", onMoveStart);
       close();
     };

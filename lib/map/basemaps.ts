@@ -30,7 +30,7 @@ export const BASEMAPS: Record<BasemapId, BasemapDef> = {
   osm: {
     id: "osm",
     label: "OSM",
-    description: "OpenStreetMap Shortbread 벡터 지도",
+    description: "OpenStreetMap Shortbread 벡터 지도 + 브이월드 POI",
     styleUrl: "/osm.json",
   },
 };

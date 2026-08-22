@@ -10,7 +10,6 @@ import {
   GeolocateControl,
   Map,
   NavigationControl,
-  Popup,
   ScaleControl,
   addProtocol,
   setWorkerUrl,
@@ -21,10 +20,9 @@ import {
   isVWorldVectorTileUrl,
   VWORLD_VECTOR_MIN_ZOOM,
 } from "@/lib/vworld/config";
-import { POI_LAYER_IDS } from "@/lib/vworld/poi-layers";
 import { BASEMAPS, resolveBasemapId } from "@/lib/map/basemaps";
 import { migrateLegacyHash, readHashParam } from "@/lib/map/hash-state";
-import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
+import { attachClickRouter } from "@/lib/map/click-router";
 
 import { Search } from "./search";
 import { BasemapSwitcher } from "./basemap/switcher";
@@ -142,25 +140,6 @@ export default function VWorldMap({
 
     const detachClickRouter = attachClickRouter(map);
 
-    // 기존 전역 디버그 팝업 — 단일 클릭 라우터의 최하위 우선순위 분기로 이관.
-    // 개발 환경에서만 등록되고, 앞으로 추가되는 데이터 레이어/검색 라우트가 항상 우선한다.
-    let unregisterDebugRoute: (() => void) | undefined;
-    if (process.env.NODE_ENV !== "production") {
-      unregisterDebugRoute = registerClickRoutes(
-        POI_LAYER_IDS,
-        1000,
-        (feature, e) => {
-          new Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(
-              `<pre>${JSON.stringify(feature.properties, null, 2)}</pre>`,
-            )
-            .setMaxWidth("500px")
-            .addTo(map);
-        },
-      );
-    }
-
     // setStyle(베이스맵 전환) 시작 시점. 'styledataloading'은 Style.loadURL/loadJSON
     // 진입에서만 발화하고 addLayer/addSource로는 발화하지 않는다. 여기서 false로 내려야
     // useDataLayers가 옛 스타일이 살아 있는 동안 dl-* 레이어를 정리하고, 이어지는
@@ -181,7 +160,6 @@ export default function VWorldMap({
     setMapInstance(map);
     return () => {
       detachClickRouter();
-      unregisterDebugRoute?.();
       map.remove();
       setMapInstance(null);
     };

@@ -1,33 +1,35 @@
-// ReactControl.tsx
 import { createRoot, Root } from "react-dom/client";
-import type { IControl, Map as MaplibreMap } from "maplibre-gl";
 import React from "react";
+import type { IControl, Map as MaplibreMap } from "maplibre-gl";
 
-export class ReactControl implements IControl {
+/**
+ * React 컴포넌트를 MapLibre 컨트롤로 감싼다.
+ *
+ * MapLibre는 onAdd(map)에서야 map 인스턴스를 넘겨주므로 컴포넌트는 자기 전용 React
+ * 루트에서 렌더되고 map은 그 시점에 prop으로 주입된다. 그래서 이 컨트롤 안의 UI는
+ * <VWorldMap>의 React 트리 **밖**에 있다 — MapContext(useMap/useStyleReady)를 쓸 수 없고,
+ * 지도 위 다른 오버레이와 위치가 겹치는지도 서로 알지 못한다(components/map/data/layer-toggle.tsx).
+ */
+export class ReactControl<P extends { map: MaplibreMap }> implements IControl {
   private container: HTMLDivElement | null = null;
   private root: Root | null = null;
-  private component: React.ReactNode;
 
-  constructor(component: React.ReactNode) {
-    this.component = component;
-  }
+  constructor(
+    private readonly Component: React.ComponentType<P>,
+    private readonly props: Omit<P, "map">,
+  ) {}
 
   onAdd(map: MaplibreMap): HTMLElement {
     this.container = document.createElement("div");
-    // maplibre 기본 컨트롤 그룹 스타일을 쓰고 싶으면 아래 클래스 추가
-    // this.container.className = "maplibregl-ctrl maplibregl-ctrl-group";
     this.container.className = "maplibregl-ctrl";
-    this.container.style.pointerEvents = "auto"; // maplibregl-ctrl 대체
-
-    const element = this.component as React.ReactElement;
-    const mapProp = {
-      ...(element.props as Record<string, unknown>),
-      map,
-    } as Record<string, unknown>;
-    const mappedElement = React.createElement(element.type, mapProp);
+    // maplibregl-ctrl 자체는 pointer-events를 켜주지 않는다 — 안에 든 React UI가
+    // 클릭을 받으려면 직접 켜야 한다.
+    this.container.style.pointerEvents = "auto";
 
     this.root = createRoot(this.container);
-    this.root.render(mappedElement);
+    this.root.render(
+      React.createElement(this.Component, { ...this.props, map } as P),
+    );
     return this.container;
   }
 

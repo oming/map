@@ -2,24 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-
-import {
-  isVWorldVectorTileUrl,
-  VWORLD_API_KEY,
-  VWORLD_VECTOR_MIN_ZOOM,
-} from "@/lib/vworld/config";
-import { migrateLegacyHash } from "@/lib/map/hash-state";
-import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
-import poiLayersRaw from "@/data/poi-layers.json";
-
-const POI_DEBUG_LAYER_IDS = (poiLayersRaw as { id: string }[]).map((l) => l.id);
-
-// 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
-const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
-const INITIAL_VIEW_ZOOM = 7;
-
 import { PbfReader } from "pbf";
 import { VectorTile } from "@mapbox/vector-tile";
+import { fromVectorTileJs } from "@maplibre/vt-pbf";
 import {
   FullscreenControl,
   GeolocateControl,
@@ -31,14 +16,63 @@ import {
   setWorkerUrl,
   ErrorEvent,
 } from "maplibre-gl";
+
+import {
+  isVWorldVectorTileUrl,
+  VWORLD_API_KEY,
+  VWORLD_VECTOR_MIN_ZOOM,
+} from "@/lib/vworld/config";
+import { POI_LAYER_IDS } from "@/lib/vworld/poi-layers";
+import { migrateLegacyHash } from "@/lib/map/hash-state";
+import { attachClickRouter, registerClickRoutes } from "@/lib/map/click-router";
+
 import { Search } from "./search";
 import { ReactControl } from "./react-control";
 import { MapContext } from "./map-context";
-import { fromVectorTileJs } from "@maplibre/vt-pbf";
 
 setWorkerUrl("/maplibre-gl-worker.mjs");
 
-const protocol = "reverse";
+// 한반도 전체가 보이는 기본 진입 뷰(신규 방문 시). 좌표 해시가 있는 URL은 이 값 대신 해시를 사용한다.
+const INITIAL_VIEW_CENTER: [number, number] = [127.8, 36.5];
+const INITIAL_VIEW_ZOOM = 7;
+
+const REVERSE_PROTOCOL = "reverse";
+
+/**
+ * V-World 벡터타일 응답을 가로채 레이어 이름을 전부 "poi"로 바꿔 다시 인코딩한다.
+ * V-World는 타일마다 레이어 이름이 제각각인데 스타일(data/poi-layers.json)은 단일
+ * source-layer를 기대하기 때문이다.
+ */
+function registerReverseProtocol(): void {
+  addProtocol(REVERSE_PROTOCOL, async (params) => {
+    const url = params.url.replace(REVERSE_PROTOCOL + "://", "");
+
+    return fetch(url)
+      .then((response) => response.arrayBuffer())
+      .then((buffer) => new VectorTile(new PbfReader(buffer)))
+      .then((tile) => {
+        const renamedTile: VectorTile = {
+          layers: Object.entries(tile.layers).reduce(
+            (renamed, [layerId, layer]) => ({
+              ...renamed,
+              [layerId]: {
+                ...layer,
+                name: "poi",
+                // 이 래퍼는 no-op처럼 보이지만 지우면 안 된다 — 위 스프레드는 own
+                // enumerable 속성만 복사하므로 프로토타입 메서드인 feature()가
+                // 사라지고, fromVectorTileJs가 피처를 못 읽어 타일이 빈 채로 나온다.
+                feature: (index: number) => layer.feature(index),
+              },
+            }),
+            {},
+          ),
+        };
+        return renamedTile;
+      })
+      .then((tile) => fromVectorTileJs(tile).buffer)
+      .then((data) => ({ data }));
+  });
+}
 
 export default function VWorldMap({
   children,
@@ -55,34 +89,10 @@ export default function VWorldMap({
     // new Map() 이전에 실행 — 구버전 '#zoom/lat/lng' 링크를 '#map=zoom/lat/lng'로 옮긴다.
     migrateLegacyHash();
 
-    addProtocol(protocol, async (params, abortController) => {
-      const url = params.url.replace(protocol + "://", "");
-
-      return fetch(url)
-        .then((response) => response.arrayBuffer())
-        .then((data) => new VectorTile(new PbfReader(data)))
-        .then((tile) => {
-          const newTile: VectorTile = {
-            layers: Object.entries(tile.layers).reduce(
-              (acc, [layerId, layer]) => ({
-                ...acc,
-                [layerId]: {
-                  ...layer,
-                  name: "poi",
-                  feature: (index: number) => {
-                    const feature = layer.feature(index);
-                    return feature;
-                  },
-                },
-              }),
-              {},
-            ),
-          };
-          return newTile;
-        })
-        .then((tile) => fromVectorTileJs(tile).buffer)
-        .then((data) => ({ data }));
-    });
+    // addProtocol은 MapLibre 전역 레지스트리라 map 인스턴스에 묶이지 않는다. 언마운트 시
+    // removeProtocol을 부르지 않는 이유는, 같은 프로토콜을 재등록해도 덮어쓰기라 무해하고
+    // 해제 타이밍을 잘못 잡으면 아직 살아 있는 타일 요청이 깨지기 때문이다.
+    registerReverseProtocol();
 
     const map = new Map({
       container: containerRef.current,
@@ -100,7 +110,7 @@ export default function VWorldMap({
 
     map.setTransformRequest((url, resourceType) => {
       if (isVWorldVectorTileUrl(url) && resourceType === "Tile") {
-        return { url: protocol + "://" + url };
+        return { url: REVERSE_PROTOCOL + "://" + url };
       }
       return undefined;
     });
@@ -120,8 +130,7 @@ export default function VWorldMap({
       }),
     );
 
-    const searchControl = new ReactControl(<Search />);
-    map.addControl(searchControl, "top-left");
+    map.addControl(new ReactControl(Search, {}), "top-left");
 
     const detachClickRouter = attachClickRouter(map);
 
@@ -130,7 +139,7 @@ export default function VWorldMap({
     let unregisterDebugRoute: (() => void) | undefined;
     if (process.env.NODE_ENV !== "production") {
       unregisterDebugRoute = registerClickRoutes(
-        POI_DEBUG_LAYER_IDS,
+        POI_LAYER_IDS,
         1000,
         (feature, e) => {
           new Popup()

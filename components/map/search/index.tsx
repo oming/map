@@ -28,7 +28,8 @@ import { ResultList } from "./result-list";
 import { SearchPager } from "./search-pager";
 import { SearchError } from "./search-error";
 
-export function Search({ map = null }: { map?: MaplibreMap | null }) {
+/** ReactControl이 MapLibre 컨트롤로 마운트한다 — map은 onAdd 시점에 주입되므로 항상 존재한다. */
+export function Search({ map }: { map: MaplibreMap }) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -122,8 +123,8 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
     e.preventDefault();
     const q = draftQuery.trim();
     setSearchQuery(q);
-    setSearchBbox(map ? viewportBBoxWithMinRadius(map.getBounds()) : undefined);
-    setBiasApplied(!!map);
+    setSearchBbox(viewportBBoxWithMinRadius(map.getBounds()));
+    setBiasApplied(true);
     setIsNationwideFallback(false);
     setOpen(true);
     clearSelection();
@@ -307,8 +308,7 @@ export function Search({ map = null }: { map?: MaplibreMap | null }) {
         </>
       )}
 
-      {map &&
-        showSearchThisArea &&
+      {showSearchThisArea &&
         createPortal(
           <div className="pointer-events-none absolute inset-x-0 bottom-[calc(1.5rem+env(safe-area-inset-bottom))] z-10 flex justify-center">
             <Button

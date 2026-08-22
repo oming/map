@@ -4,6 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import type { DataLayerDef } from "@/lib/map/datasets/types";
 import { teardownLayerGroup } from "@/lib/map/layer-lifecycle";
 import { registerPinImage, STANDARD_PIN_WIDTH } from "@/lib/map/pin-image";
+import { SLOT_OVERLAY_LAYER_ID } from "@/lib/map/slot-overlay";
 
 export interface DataLayerIds {
   source: string;
@@ -70,7 +71,7 @@ export function addDataLayer(
           "circle-stroke-color": "#ffffff",
         },
       },
-      "slot-overlay",
+      SLOT_OVERLAY_LAYER_ID,
     );
     map.addLayer(
       {
@@ -85,7 +86,7 @@ export function addDataLayer(
         },
         paint: { "text-color": "#ffffff" },
       },
-      "slot-overlay",
+      SLOT_OVERLAY_LAYER_ID,
     );
   }
 
@@ -114,7 +115,7 @@ export function addDataLayer(
           ],
         },
       },
-      "slot-overlay",
+      SLOT_OVERLAY_LAYER_ID,
     );
   }
 

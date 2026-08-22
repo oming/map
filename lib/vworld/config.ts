@@ -29,6 +29,18 @@ export function getVWorldVectorBackgroundUrl(layer: "Base" = "Base"): string {
   return `${VWORLD_API_BASE}/req/wmts/vector/${VWORLD_API_KEY}/${layer}/{z}/{x}/{y}.png`;
 }
 
+export const VWORLD_RASTER_MIN_ZOOM = 6;
+export const VWORLD_RASTER_MAX_ZOOM = 19; // z20부터는 V-World가 XML 에러를 준다(실측 확인)
+
+/**
+ * 일반 래스터 WMTS — 벡터 정렬 배경(getVWorldVectorBackgroundUrl)과는 **다른 엔드포인트**다.
+ * 경로 순서가 {z}/{y}/{x}(행/열)이고, Satellite는 .jpeg / Hybrid는 .png만 응답한다(실측 확인).
+ */
+export function getVWorldRasterTileUrl(layer: "Satellite" | "Hybrid"): string {
+  const ext = layer === "Satellite" ? "jpeg" : "png";
+  return `${VWORLD_API_BASE}/req/wmts/1.0.0/${VWORLD_API_KEY}/${layer}/{z}/{y}/{x}.${ext}`;
+}
+
 /** setTransformRequest에서 getTile 요청을 reverse:// 프로토콜로 우회시킬 때 쓰는 URL 판별 */
 export function isVWorldVectorTileUrl(url: string): boolean {
   return url.startsWith(VWORLD_TILE_PATH);
